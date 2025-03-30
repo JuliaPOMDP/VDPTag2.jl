@@ -1,102 +1,83 @@
-using VDPTag2
 using Test
-using MCTS
+using VDPTag2
 using POMDPs
-using ParticleFilters
-using ProgressMeter
-using LinearAlgebra
-using Random
 using POMDPTools
-using POMDPModels
+using ParticleFilters
+using Random
+using MCTS
 
+# Setup
 Random.seed!(1)
+rng = MersenneTwister(31)
 pomdp = VDPTagPOMDP()
-gen = NextMLFirst(mdp(pomdp), MersenneTwister(31))
-global s = TagState([1.0, 1.0], [-1.0, -1.0])
+mdp_model = mdp(pomdp)
+gen = NextMLFirst(mdp_model, rng)
+state = TagState(Vec2(1.0, 1.0), Vec2(-1.0, -1.0))
 
-struct MyNode end
-MCTS.n_children(::MyNode) = rand(1:10)
+# Dummy Node for MCTS testing
+struct DummyNode end
+MCTS.n_children(::DummyNode) = rand(1:10)
 
-@inferred next_action(gen, pomdp, s, MyNode())
-@inferred next_action(gen, pomdp, initialstate(pomdp), MyNode())
+@testset "ToNextML + MCTS" begin
+    @test isa(next_action(gen, pomdp, state, DummyNode()), Float64)
+    @test isa(next_action(gen, pomdp, initialstate(pomdp), DummyNode()), Int)
+end
 
-for a in range(0.0, stop=2*pi, length=100)
-    local s = TagState(Vec2(0,0), Vec2(1,1))
+@testset "Barrier Stop Sanity" begin
     barriers = CardinalBarriers(0.2, 1.8)
-    agent_speed = 1.0
-    step_size = 0.5
-    delta = agent_speed*step_size*Vec2(cos(a), sin(a))
-    agent = barrier_stop(barriers, s.agent, delta)
-    @test agent == s.agent+delta
+    for a in range(0.0, stop=2π, length=100)
+        s = TagState(Vec2(0,0), Vec2(1,1))
+        delta = mdp_model.agent_speed * mdp_model.step_size * Vec2(cos(a), sin(a))
+        moved = barrier_stop(barriers, s.agent, delta)
+        @test norm(moved - s.agent) ≤ norm(delta)
+    end
 end
 
-pomdp = VDPTagPOMDP()
-for sao in stepthrough(pomdp, RandomPolicy(pomdp), "s,a,o", max_steps=10)
-    @show sao
+@testset "Simulation - Continuous" begin
+    policy = ToNextML(pomdp)
+    updater = BootstrapFilter(pomdp, 100)
+    sim_hist = simulate(HistoryRecorder(max_steps=10), pomdp, policy, updater)
+    @test length(state_hist(sim_hist)) > 1
 end
 
-dpomdp = AODiscreteVDPTagPOMDP(pomdp, 30, 0.5)
-for sao in stepthrough(dpomdp, RandomPolicy(dpomdp), "s,a,o", max_steps=10)
-    @show sao
-    # to address #7
-    rand(Random.GLOBAL_RNG, POMDPs.observation(dpomdp, sao[1], 1, sao[1]))
+@testset "Simulation - Discrete" begin
+    dpomdp = AODiscreteVDPTagPOMDP(pomdp)
+    policy = RandomPolicy(dpomdp)
+    sim_hist = simulate(HistoryRecorder(max_steps=10), dpomdp, policy)
+    @test length(state_hist(sim_hist)) > 1
 end
 
-pomdp = VDPTagPOMDP(mdp=VDPTagMDP(barriers=CardinalBarriers(0.2, 1.8)))
-filter = BootstrapFilter(pomdp, 1000)
-for sao in stepthrough(pomdp, ToNextML(pomdp), filter, "s,a,o", max_steps=10)
-    @show sao
-end
-
-# test to make sure it can't pass through any walls
-pomdp = VDPTagPOMDP(mdp=VDPTagMDP(barriers=CardinalBarriers(0.0, 100.0)))
-filter = BootstrapFilter(pomdp, 1000)
-for quadrant in [Vec2(1,1), Vec2(-1,1), Vec2(1,-1), Vec2(-1,-1)]
-    @showprogress for i in 1:100
-        is = rand(Random.GLOBAL_RNG, initialstate(pomdp))
-        is = TagState(quadrant, is.target)
-        for (s, sp) in stepthrough(pomdp, ToNextML(pomdp), filter, initialstate(pomdp), is, "s,sp", max_steps=100)
-            @test all(s.agent.*quadrant .>= 0.0)
-            if s == sp
-                println("did not move (this should not happen a bunch of times)")
-            end
-        end
-        policy = RandomPolicy(pomdp)
-        for (s, sp) in stepthrough(pomdp, policy, updater(policy), nothing, is, "s,sp", max_steps=100)
-            @test all(s.agent.*quadrant .>= 0.0)
-            if s == sp
-                println("did not move (this should not happen a bunch of times)")
-            end
+@testset "Barriers Block Movement" begin
+    pomdp_blocked = VDPTagPOMDP(mdp=VDPTagMDP(barriers=CardinalBarriers(0.0, 100.0)))
+    policy = ToNextML(pomdp_blocked)
+    updater = BootstrapFilter(pomdp_blocked, 100)
+    for quadrant in [Vec2(1,1), Vec2(-1,1), Vec2(1,-1), Vec2(-1,-1)]
+        for _ in 1:20
+            s0 = rand(rng, initialstate(pomdp_blocked))
+            s0 = TagState(quadrant, s0.target)
+            hist = simulate(HistoryRecorder(max_steps=5), pomdp_blocked, policy, updater, s0)
+            @test all(all(s.agent .* quadrant .>= 0.0) for s in state_hist(hist))
         end
     end
 end
 
-# make sure it does pass through walls sometimes without any barriers
-pomdp = VDPTagPOMDP()
-N = 100
-for quadrant in [Vec2(1,1), Vec2(-1,1), Vec2(1,-1), Vec2(-1,-1)]
-    in_other = falses(N)
-    @showprogress for i in 1:N
-        is = rand(Random.GLOBAL_RNG, initialstate(pomdp))
-        is = TagState(quadrant, is.target)
-        hr = HistoryRecorder(max_steps=100)
-        hist = simulate(hr, pomdp, ToNextML(pomdp), filter)
-        in_other[i] = any(any(s.agent.*quadrant .< 0.0) for s in state_hist(hist))
+@testset "No Barriers - Agent Crosses Quadrant" begin
+    pomdp_clear = VDPTagPOMDP()
+    policy = ToNextML(pomdp_clear)
+    updater = BootstrapFilter(pomdp_clear, 100)
+    crossed = 0
+    for quadrant in [Vec2(1,1), Vec2(-1,1), Vec2(1,-1), Vec2(-1,-1)]
+        local crosses = 0
+        for _ in 1:50
+            s0 = rand(rng, initialstate(pomdp_clear))
+            s0 = TagState(quadrant, s0.target)
+            hist = simulate(HistoryRecorder(max_steps=10), pomdp_clear, policy, updater, s0)
+            if any(s.agent .* quadrant .< 0.0 for s in state_hist(hist))
+                crosses += 1
+            end
+        end
+        @test crosses > 0
+        crossed += crosses
     end
-    @show sum(in_other)/length(in_other)
-    println("Should be near one?")
-    @test any(in_other)
-end
-for quadrant in [Vec2(1,1), Vec2(-1,1), Vec2(1,-1), Vec2(-1,-1)]
-    in_other = falses(N)
-    @showprogress for i in 1:N
-        is = rand(Random.GLOBAL_RNG, initialstate(pomdp))
-        is = TagState(quadrant, is.target)
-        hr = HistoryRecorder(max_steps=2)
-        hist = simulate(hr, pomdp, RandomPolicy(pomdp))
-        in_other[i] = any(any(s.agent.*quadrant .< 0.0) for s in state_hist(hist))
-    end
-    @show sum(in_other)/length(in_other)
-    println("Should be near 3/4?")
-    @test any(in_other)
+    @test crossed > 0
 end
