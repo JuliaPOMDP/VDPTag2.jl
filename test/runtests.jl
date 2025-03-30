@@ -5,6 +5,7 @@ using POMDPTools
 using ParticleFilters
 using Random
 using MCTS
+using LinearAlgebra
 
 # Seed RNG for reproducibility
 Random.seed!(1)
