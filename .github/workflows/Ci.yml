@@ -24,12 +24,12 @@ jobs:
         with:
           version: ${{ matrix.julia-version }}
 
-      - name: Install dependencies (quiet)
-        run: julia --project=. -e 'using Pkg; Pkg.instantiate()' > /dev/null 2>&1
+      - name: Install dependencies
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate()'
 
-      - name: Run tests (quiet unless failed)
+      - name: Run tests
         run: |
           julia --project=. -e '
             using Pkg
-            Pkg.test(; verbose=false)
+            Pkg.test()
           ' > test_output.log 2>&1 || (cat test_output.log && exit 1)
