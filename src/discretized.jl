@@ -5,13 +5,16 @@ const IVec8 = SVector{8, Int}
     cpomdp::VDPTagPOMDP{B}  = VDPTagPOMDP()
     n_angles::Int           = 10
     binsize::Float64        = 0.5
+    n_bins::Int             = 10
+    grid_lim::Float64       = 1.0
 end
 
 @with_kw struct ADiscreteVDPTagPOMDP{B} <: POMDP{TagState, Int, Vec8}
     cpomdp::VDPTagPOMDP{B}  = VDPTagPOMDP()
     n_angles::Int           = 10
+    n_bins::Int             = 10
+    grid_lim::Float64       = 1.0
 end
-
 
 const DiscreteVDPTagProblem = Union{AODiscreteVDPTagPOMDP, ADiscreteVDPTagPOMDP}
 
