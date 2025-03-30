@@ -1,3 +1,11 @@
+import POMDPs: action
+using ParticleFilters: particle_mean
+
+function action(p::ToNextML, b::WeightedParticleBelief{TagState})
+    s = particle_mean(b)
+    return action(p, s)
+end
+
 struct ToNextML{RNG<:AbstractRNG} <: Policy
     p::VDPTagMDP
     rng::RNG
