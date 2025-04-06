@@ -1,5 +1,5 @@
 import POMDPs: action, solve
-import ParticleFilters: ParticleCollection, WeightedParticleBelief, particle_mean, particles, n_particles
+import ParticleFilters: ParticleCollection, WeightedParticleBelief, particles, n_particles
 using Distributions: MvNormal, fit, mean, cov
 using Random
 
@@ -95,3 +95,14 @@ function POMDPs.action(p::TranslatedPolicy, pc::AbstractParticleBelief)
     ca = POMDPs.action(p.policy, cpc)
     return convert_a(p.A, ca, p.translator)
 end
+
+function particle_mean(b::WeightedParticleBelief{TagState})
+    agent = zeros(2)
+    target = zeros(2)
+    for (s, w) in zip(b.particles, b.weights)
+        agent .+= w .* s.agent
+        target .+= w .* s.target
+    end
+    return TagState(SVector(agent), SVector(target))
+end
+
