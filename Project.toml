@@ -18,7 +18,7 @@ Reel = "71555da5-176e-5e73-a222-aebc6c6e4f2f"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
-POMDPs = "0.9"
+POMDPs = "0.9, 1"
 
 [extras]
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
