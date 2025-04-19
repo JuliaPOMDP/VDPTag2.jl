@@ -168,25 +168,24 @@ function POMDPs.pdf(d::BeamDist, o::Vec8)
 end
 
 function active_beam(rel_pos::Vec2)
-    angle = atan(rel_pos[2], rel_pos[1])
-    while angle <= 0.0
-        angle += 2*pi
+    if any(isnan, rel_pos)
+        error("Invalid relative position: contains NaN")
     end
-    bm = ceil(Int, 8*angle/(2*pi))
+    angle = mod(atan(rel_pos[2], rel_pos[1]), 2π)
+    bm = ceil(Int, 8 * angle / (2π))
     return clamp(bm, 1, 8)
 end
 
 function POMDPs.observation(p::VDPTagPOMDP, a::TagAction, sp::TagState)
     rel_pos = sp.target - sp.agent
+    if any(isnan, rel_pos)
+        error("Observation error: sp.target or sp.agent contains NaN")
+    end
     dist = norm(rel_pos)
     abeam = active_beam(rel_pos)
-    if a.look
-        an = Normal(dist, p.active_meas_std)
-    else
-        an = Normal(dist, p.meas_std)
-    end
+    an = a.look ? Normal(dist, p.active_meas_std) : Normal(dist, p.meas_std)
     n = Normal(1.0, p.meas_std)
-    BeamDist(abeam, an, n)
+    return BeamDist(abeam, an, n)
 end
 
 POMDPs.observation(p::VDPTagPOMDP, a::Float64, sp::TagState) = observation(p, TagAction(false, a), sp)
