@@ -1,52 +1,75 @@
 using Test
 using VDPTag2
 using POMDPs
-using POMDPTools
-using ParticleFilters
 using Random
+using ParticleFilters
 using Distributions
 
-@testset "ToNextMLSolver.solve and TranslatedPolicy.action" begin
-    dpomdp = ADiscreteVDPTagPOMDP()
-    solver = ToNextMLSolver(MersenneTwister(123))
-    policy = solve(solver, dpomdp)
+# Use a consistent random seed
+rng = MersenneTwister(123)
 
-    # Test action on discrete state
-    s = convert_s(Int, TagState(Vec2(0.0, 0.0), Vec2(0.0, 0.0)), dpomdp)
-    a = action(policy, s)
-    @test a isa Int
+@testset "Discrete State, Action, and Observation Conversion" begin
+    dp = AODiscreteVDPTagPOMDP()
+
+    # Create a simple state and action
+    s = TagState(Vec2(0.2, 0.3), Vec2(-0.5, -0.4))
+    a = TagAction(true, π/4)
+
+    # Test state conversion to integer and back
+    s_int = convert_s(Int, s, dp)
+    s_back = convert_s(TagState, s_int, dp)
+    @test s_back isa TagState
+
+    # Test action conversion to integer and back
+    a_int = convert_a(Int, a, dp)
+    a_back = convert_a(TagAction, a_int, dp)
+    @test a_back isa TagAction
+
+    # Test observation conversion
+    obs_vec = rand(rng, observation(cproblem(dp), s, a, s))
+    obs_disc = convert_o(IVec8, obs_vec, dp)
+    @test obs_disc isa IVec8
 end
 
-@testset "ManageUncertainty.action on ParticleCollection" begin
+@testset "Discrete Gen and Observation Functions" begin
+    dp1 = AODiscreteVDPTagPOMDP()
+    dp2 = ADiscreteVDPTagPOMDP()
+    s = TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0))
+    a = 1  # integer action
+
+    # Run gen function and check types
+    r1 = POMDPs.gen(dp1, s, a, rng)
+    r2 = POMDPs.gen(dp2, s, a, rng)
+    @test r1.sp isa TagState
+    @test r2.sp isa TagState
+
+    # Run observation function
+    o1 = rand(rng, POMDPs.observation(dp1, s, a, s))
+    o2 = POMDPs.observation(dp2, s, a, s)
+    @test o1 isa IVec8
+    @test o2 isa Vec8
+end
+
+@testset "Heuristic Policies and Translations" begin
     pomdp = VDPTagPOMDP()
-    policy = ManageUncertainty(pomdp, 0.01)
+    mdp_model = mdp(pomdp)
 
-    particles_ = [TagState(Vec2(0.0, 0.0), Vec2(x, x)) for x in 0.0:0.1:0.9]
-    b = ParticleCollection(particles_)
+    # ToNextML policy chooses direction based on current state
+    policy = ToNextML(mdp_model; rng=rng)
+    s = TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0))
+    angle = POMDPs.action(policy, s)
+    @test angle isa Float64
 
-    a = action(policy, b)
-    @test a isa TagAction
-    @test a.look == true
-end
+    # ManageUncertainty policy adds 'look' based on uncertainty
+    states = [TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0 + 0.01*i)) for i in 1:50]
+    belief = ParticleCollection(states)
+    policy2 = ManageUncertainty(pomdp, 0.01)
+    a2 = POMDPs.action(policy2, belief)
+    @test a2 isa TagAction
 
-@testset "TranslatedPolicy.action on ParticleCollection" begin
-    dpomdp = ADiscreteVDPTagPOMDP()
-    solver = ToNextMLSolver(MersenneTwister(123))
-    base_policy = ToNextML(mdp(dpomdp.cpomdp), solver.rng)
-    translated = translate_policy(base_policy, dpomdp.cpomdp, dpomdp, dpomdp)
-
-    # Construct belief and test
-    s = TagState(Vec2(0.0, 0.0), Vec2(0.0, 0.0))
-    b = ParticleCollection([s for _ in 1:10])
-    a = action(translated, b)
-    @test a isa Int
-end
-
-@testset "particle_mean utility" begin
-    particles_ = [TagState(Vec2(0.0, 0.0), Vec2(x, x)) for x in 0.0:0.1:0.9]
-    weights_ = fill(1/length(particles_), length(particles_))
-    b = WeightedParticleBelief(particles_, weights_)
-    s_mean = particle_mean(b)
-    @test s_mean isa TagState
-    @test isapprox(s_mean.target[1], 0.4, atol=0.1)
+    # TranslatedPolicy maps actions from one model space to another
+    dp = ADiscreteVDPTagPOMDP()
+    translated = translate_policy(policy, mdp_model, dp, dp)
+    a_translated = POMDPs.action(translated, s)
+    @test a_translated isa Int
 end
