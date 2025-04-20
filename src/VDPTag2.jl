@@ -123,8 +123,6 @@ function next_ml_target(p::VDPTagMDP, target_pos::Vector{Float64})
     return next_pos
 end
 
-next_ml_target(p::VDPTagMDP, pos::AbstractVector) = next_ml_target(p, convert(Vec2, pos))
-
 # -------------------------------
 # Transitions and Rewards
 # -------------------------------
