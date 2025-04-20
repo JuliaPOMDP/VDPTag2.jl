@@ -74,7 +74,6 @@ end
     end
 end
 
-
 @testset "No Barriers - Can Cross Quadrants" begin
     pomdp = VDPTagPOMDP()
     policy = ToNextML(pomdp)
@@ -85,10 +84,11 @@ end
         for _ in 1:25
             s0 = sample_in_quadrant(rng, quadrant)
             hist = simulate(HistoryRecorder(max_steps=10), pomdp, policy, updater, s0)
-            if any(s.agent .* quadrant .< 0.0 for s in state_hist(hist))
+            if any(any(s.agent .* quadrant .< 0.0) for s in state_hist(hist))
                 crossed += 1
             end
         end
         @test crossed > 0  # should cross at least once
     end
 end
+
