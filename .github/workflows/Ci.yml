@@ -31,5 +31,11 @@ jobs:
         run: |
           julia --project=. -e '
             using Pkg
-            Pkg.test()
+            Pkg.test(coverage=true)
           ' > test_output.log 2>&1 || (cat test_output.log && exit 1)
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: Aero-Spec/VDPTag2.jl
