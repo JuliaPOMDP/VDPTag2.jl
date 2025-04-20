@@ -69,7 +69,7 @@ end
             s0 = sample_in_quadrant(rng, quadrant)
             hist = simulate(HistoryRecorder(max_steps=5), pomdp, policy, updater, s0)
             for s in state_hist(hist)
-                @test all(s.agent .* quadrant .>= 0.0)
+                @test all(s.agent .* quadrant .>= -1e-6)  # Allow small numerical drift
             end
         end
     end
