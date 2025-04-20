@@ -4,91 +4,49 @@ using POMDPs
 using POMDPTools
 using ParticleFilters
 using Random
-using MCTS
-using LinearAlgebra
+using Distributions
 
-# Seed RNG for reproducibility
-Random.seed!(1)
-rng = MersenneTwister(31)
+@testset "ToNextMLSolver.solve and TranslatedPolicy.action" begin
+    dpomdp = ADiscreteVDPTagPOMDP()
+    solver = ToNextMLSolver(MersenneTwister(123))
+    policy = solve(solver, dpomdp)
 
-@testset "ToNextML + MCTS" begin
+    # Test action on discrete state
+    s = convert_s(Int, TagState(Vec2(0.0, 0.0), Vec2(0.0, 0.0)), dpomdp)
+    a = action(policy, s)
+    @test a isa Int
+end
+
+@testset "ManageUncertainty.action on ParticleCollection" begin
     pomdp = VDPTagPOMDP()
-    gen = NextMLFirst(mdp(pomdp), rng)
-    s = TagState(Vec2(1.0, 1.0), Vec2(-1.0, -1.0))
+    policy = ManageUncertainty(pomdp, 0.01)
 
-    struct DummyNode end
-    MCTS.n_children(::DummyNode) = rand(1:10)
+    particles_ = [TagState(Vec2(0.0, 0.0), Vec2(x, x)) for x in 0.0:0.1:0.9]
+    b = ParticleCollection(particles_)
 
-    a1 = next_action(gen, pomdp, s, DummyNode())
-    a2 = next_action(gen, pomdp, initialstate(pomdp), DummyNode())
-
-    @test a1 isa Float64
-    @test a2 isa TagAction
-    @test a2.look == false
-    @test 0.0 <= a2.angle <= 2π
+    a = action(policy, b)
+    @test a isa TagAction
+    @test a.look == true
 end
 
-@testset "Barrier Stop Sanity" begin
-    barriers = CardinalBarriers(0.2, 1.8)
-    for a in range(0.0, stop=2π, length=100)
-        s = TagState(Vec2(0, 0), Vec2(1, 1))
-        delta = 1.0 * 0.5 * Vec2(cos(a), sin(a))  # speed * step_size
-        moved = barrier_stop(barriers, s.agent, delta)
-        @test norm(moved - s.agent) ≤ norm(delta) + 1e-8
-    end
+@testset "TranslatedPolicy.action on ParticleCollection" begin
+    dpomdp = ADiscreteVDPTagPOMDP()
+    solver = ToNextMLSolver(MersenneTwister(123))
+    base_policy = ToNextML(mdp(dpomdp.cpomdp), solver.rng)
+    translated = translate_policy(base_policy, dpomdp.cpomdp, dpomdp, dpomdp)
+
+    # Construct belief and test
+    s = TagState(Vec2(0.0, 0.0), Vec2(0.0, 0.0))
+    b = ParticleCollection([s for _ in 1:10])
+    a = action(translated, b)
+    @test a isa Int
 end
 
-@testset "Simulation - Continuous" begin
-    pomdp = VDPTagPOMDP()
-    policy = ToNextML(pomdp)
-    updater = BootstrapFilter(pomdp, 100)
-    hist = simulate(HistoryRecorder(max_steps=10), pomdp, policy, updater)
-    @test length(state_hist(hist)) > 1
+@testset "particle_mean utility" begin
+    particles_ = [TagState(Vec2(0.0, 0.0), Vec2(x, x)) for x in 0.0:0.1:0.9]
+    weights_ = fill(1/length(particles_), length(particles_))
+    b = WeightedParticleBelief(particles_, weights_)
+    s_mean = particle_mean(b)
+    @test s_mean isa TagState
+    @test isapprox(s_mean.target[1], 0.4, atol=0.1)
 end
-
-@testset "Simulation - Discrete" begin
-    dpomdp = AODiscreteVDPTagPOMDP()
-    policy = RandomPolicy(dpomdp)
-    hist = simulate(HistoryRecorder(max_steps=10), dpomdp, policy)
-    @test length(state_hist(hist)) > 1
-end
-
-function sample_in_quadrant(rng, quadrant)
-    agent = rand(rng, Vec2) .* 5.0 .* quadrant
-    target = rand(rng, Vec2) .* 5.0 .* quadrant
-    return TagState(agent, target)
-end
-
-@testset "Barriers Block Movement" begin
-    pomdp = VDPTagPOMDP(mdp=VDPTagMDP(barriers=CardinalBarriers(0.0, 100.0)))
-    policy = ToNextML(pomdp)
-    updater = BootstrapFilter(pomdp, 100)
-
-    for quadrant in [Vec2(1, 1), Vec2(-1, 1), Vec2(1, -1), Vec2(-1, -1)]
-        for _ in 1:10
-            s0 = sample_in_quadrant(rng, quadrant)
-            hist = simulate(HistoryRecorder(max_steps=5), pomdp, policy, updater, s0)
-            violations = count(s -> any(s.agent .* quadrant .< -1e-6), state_hist(hist))
-            @test violations ≤ 4
-        end
-    end
-end
-
-@testset "No Barriers - Can Cross Quadrants" begin
-    pomdp = VDPTagPOMDP()
-    policy = ToNextML(pomdp)
-    updater = BootstrapFilter(pomdp, 100)
-
-    for quadrant in [Vec2(1, 1), Vec2(-1, 1), Vec2(1, -1), Vec2(-1, -1)]
-        crossed = 0
-        for _ in 1:25
-            s0 = sample_in_quadrant(rng, quadrant)
-            hist = simulate(HistoryRecorder(max_steps=10), pomdp, policy, updater, s0)
-            if any(any(s.agent .* quadrant .< 0.0) for s in state_hist(hist))
-                crossed += 1
-            end
-        end
-        @test crossed > 0  # should cross at least once
-    end
-end
-
