@@ -13,7 +13,7 @@ using LinearAlgebra
 const Vec2 = SVector{2, Float64}
 const Vec8 = SVector{8, Float64}
 
-import Base: rand, eltype, convert
+import Base.rand(rng::AbstractRNG, s::TagState) = s
 import MCTS: next_action, n_children
 import ParticleFilters: obs_weight
 import POMDPs: actions, isterminal
