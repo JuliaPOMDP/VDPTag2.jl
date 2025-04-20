@@ -1,7 +1,8 @@
 import VDPTag2: convert_s, convert_a, convert_o
+import POMDPs
+import Base: sub2ind, ind2sub
 using Test
 using VDPTag2
-using POMDPs
 using Random
 using ParticleFilters
 using Distributions
