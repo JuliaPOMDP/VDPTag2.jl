@@ -1,6 +1,5 @@
 module VDPTag2
 
-# package code goes here
 using POMDPs
 using StaticArrays
 using Parameters
@@ -11,11 +10,9 @@ using ParticleFilters
 using Random
 using LinearAlgebra
 
-
 const Vec2 = SVector{2, Float64}
 const Vec8 = SVector{8, Float64}
 
-# importall POMDPs
 import Base: rand, eltype, convert
 import MCTS: next_action, n_children
 import ParticleFilters: obs_weight
@@ -47,8 +44,12 @@ export
     DiscretizedPolicy,
     ManageUncertainty,
     CardinalBarriers,
-    mdp
+    mdp,
     isterminal
+
+# -------------------------------
+# Basic State and Action
+# -------------------------------
 
 struct TagState
     agent::Vec2
@@ -59,6 +60,10 @@ struct TagAction
     look::Bool
     angle::Float64
 end
+
+# -------------------------------
+# MDP and POMDP Definitions
+# -------------------------------
 
 @with_kw struct VDPTagMDP{B} <: MDP{TagState, Float64}
     mu::Float64          = 2.0
@@ -72,6 +77,7 @@ end
     barriers::B          = nothing
     tag_terminate::Bool  = true
     discount::Float64    = 0.95
+    goal::Vec2           = Vec2(5.0, 5.0)  # ✅ NEW FIELD
 end
 
 @with_kw struct VDPTagPOMDP{B} <: POMDP{TagState, TagAction, Vec8}
@@ -85,14 +91,43 @@ const VDPTagProblem = Union{VDPTagMDP,VDPTagPOMDP}
 mdp(p::VDPTagMDP) = p
 mdp(p::VDPTagPOMDP) = p.mdp
 
-function next_ml_target(p::VDPTagMDP, pos::Vec2)
-    steps = round(Int, p.step_size/p.dt)
-    for i in 1:steps
-        pos = rk4step(p, pos)
-    end
-    return pos
+# -------------------------------
+# Target Model
+# -------------------------------
+
+function target_speed(p::VDPTagMDP)
+    return 0.5  # ✅ you can adjust this constant
 end
+
+function next_ml_target(p::VDPTagMDP, target_pos::Vector{Float64})
+    goal = p.goal
+    direction = goal - target_pos
+
+    if !all(isfinite, target_pos) || !all(isfinite, goal)
+        @warn "Non-finite input to next_ml_target: target_pos=$target_pos, goal=$goal"
+        return fill(0.0, 2)
+    end
+
+    if norm(direction) < 1e-6
+        return target_pos
+    end
+
+    velocity = normalize(direction) * target_speed(p)
+    next_pos = target_pos + velocity * p.dt
+
+    if !all(isfinite, next_pos)
+        @warn "next_ml_target returned NaN or Inf: target_pos=$target_pos, velocity=$velocity"
+        return target_pos
+    end
+
+    return next_pos
+end
+
 next_ml_target(p::VDPTagMDP, pos::AbstractVector) = next_ml_target(p, convert(Vec2, pos))
+
+# -------------------------------
+# Transitions and Rewards
+# -------------------------------
 
 function POMDPs.transition(pp::VDPTagProblem, s::TagState, a::Float64)
     ImplicitDistribution(pp, s, a) do pp, s, a, rng
@@ -114,11 +149,9 @@ function POMDPs.transition(pp::VDPTagProblem, s::TagState, a::Float64)
     end
 end
 
-
-
 function POMDPs.reward(pp::VDPTagProblem, s::TagState, a::Float64, sp::TagState)
     p = mdp(pp)
-    if norm(sp.agent-sp.target) < p.tag_radius
+    if norm(sp.agent - sp.target) < p.tag_radius
         return p.tag_reward
     else
         return -p.step_cost
@@ -126,29 +159,29 @@ function POMDPs.reward(pp::VDPTagProblem, s::TagState, a::Float64, sp::TagState)
 end
 
 POMDPs.discount(pp::VDPTagProblem) = mdp(pp).discount
-isterminal(pp::VDPTagProblem, s::TagState) = mdp(pp).tag_terminate && norm(s.agent-s.target) < mdp(pp).tag_radius
+isterminal(pp::VDPTagProblem, s::TagState) = mdp(pp).tag_terminate && norm(s.agent - s.target) < mdp(pp).tag_radius
+
+# -------------------------------
+# Action Spaces
+# -------------------------------
 
 struct AngleSpace end
-rand(rng::AbstractRNG, ::AngleSpace) = 2*pi*rand(rng)
+rand(rng::AbstractRNG, ::AngleSpace) = 2π * rand(rng)
 POMDPs.actions(::VDPTagMDP) = AngleSpace()
 
 POMDPs.transition(p::VDPTagPOMDP, s::TagState, a::TagAction) = transition(p, s, a.angle)
 
 struct POVDPTagActionSpace end
-rand(rng::AbstractRNG, ::POVDPTagActionSpace) = TagAction(rand(rng, Bool), 2*pi*rand(rng))
+rand(rng::AbstractRNG, ::POVDPTagActionSpace) = TagAction(rand(rng, Bool), 2π * rand(rng))
 POMDPs.actions(::VDPTagPOMDP) = POVDPTagActionSpace()
 
 function POMDPs.reward(p::VDPTagPOMDP, s::TagState, a::TagAction, sp::TagState)
-    return reward(mdp(p), s, a.angle, sp) - a.look*p.meas_cost
+    return reward(mdp(p), s, a.angle, sp) - a.look * p.meas_cost
 end
 
-#=
-Beam | covers (deg)
--------------------
-1    | (0,45]
-2    | (45,90]
-etc.
-=#
+# -------------------------------
+# Observation Model
+# -------------------------------
 
 struct BeamDist
     abeam::Int
@@ -202,6 +235,10 @@ function POMDPs.observation(p::VDPTagPOMDP, a::TagAction, sp::TagState)
 end
 
 POMDPs.observation(p::VDPTagPOMDP, a::Float64, sp::TagState) = observation(p, TagAction(false, a), sp)
+
+# -------------------------------
+# Includes
+# -------------------------------
 
 include("rk4.jl")
 include("barriers.jl")
