@@ -95,10 +95,6 @@ mdp(p::VDPTagPOMDP) = p.mdp
 # Target Model
 # -------------------------------
 
-# -------------------------------
-# Target Model
-# -------------------------------
-
 function target_speed(p::VDPTagMDP)
     return 0.5  # ✅ you can adjust this constant
 end
@@ -255,6 +251,16 @@ include("heuristics.jl")
 
 function ModelTools.gbmdp_handle_terminal(pomdp::VDPTagPOMDP, updater::Updater, b::ParticleCollection, s, a, rng)
     return ParticleCollection([s])
+end
+
+# -------------------------------
+# Random Sampling for TagState
+# -------------------------------
+
+function Base.rand(rng::AbstractRNG, ::TagState)
+    agent = rand(rng, SVector{2, Float64}) .* 10 .- 5  # uniform in [-5, 5]
+    target = rand(rng, SVector{2, Float64}) .* 10 .- 5
+    return TagState(agent, target)
 end
 
 end # module
