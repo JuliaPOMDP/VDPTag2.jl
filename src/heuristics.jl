@@ -3,6 +3,10 @@ import ParticleFilters: ParticleCollection, WeightedParticleBelief, particles, n
 using Distributions: MvNormal, fit, mean, cov
 using Random
 
+# ----------------------------
+# ToNextML Policy
+# ----------------------------
+
 struct ToNextML{RNG<:AbstractRNG} <: Policy
     p::VDPTagMDP
     rng::RNG
@@ -14,27 +18,29 @@ function POMDPs.action(p::ToNextML, s::TagState)
     next = next_ml_target(p.p, s.target)
     diff = next - s.agent
 
-    if any(x -> !isfinite(x), diff)
-        error("Computed diff has NaN or Inf! agent=$(s.agent), next=$(next), diff=$(diff)")
-    end
+    @assert all(isfinite, s.agent) "Agent state has non-finite values: $(s.agent)"
+    @assert all(isfinite, next) "Next target position has non-finite values: $(next)"
+    @assert all(isfinite, diff) "Diff vector has non-finite values: $(diff)"
 
     angle = atan(diff[2], diff[1])
-
-    if !isfinite(angle)
-        error("Computed angle is not finite. diff = $diff")
-    end
+    @assert isfinite(angle) "Computed angle is not finite. diff = $diff"
 
     return angle
 end
 
 function POMDPs.action(p::ToNextML, b::ParticleCollection{TagState})
-    return TagAction(false, POMDPs.action(p, rand(p.rng, b)))
+    s = rand(p.rng, b)
+    return TagAction(false, POMDPs.action(p, s))
 end
 
 function POMDPs.action(p::ToNextML, b::WeightedParticleBelief{TagState})
     s = particle_mean(b)
     return TagAction(false, POMDPs.action(p, s))
 end
+
+# ----------------------------
+# Solver
+# ----------------------------
 
 struct ToNextMLSolver <: Solver
     rng::AbstractRNG
@@ -47,6 +53,10 @@ function POMDPs.solve(s::ToNextMLSolver, dp::DiscreteVDPTagProblem)
     return translate_policy(ToNextML(mdp(cp), s.rng), cp, dp, dp)
 end
 
+# ----------------------------
+# ManageUncertainty Policy
+# ----------------------------
+
 struct ManageUncertainty <: Policy
     p::VDPTagPOMDP
     max_norm_std::Float64
@@ -54,15 +64,21 @@ end
 
 function POMDPs.action(p::ManageUncertainty, b::ParticleCollection{TagState})
     agent = first(particles(b)).agent
-    target_particles = Array{Float64}(undef, 2, n_particles(b))
-    for (i, s) in enumerate(particles(b))
-        target_particles[:, i] = s.target
-    end
+    target_particles = hcat([s.target for s in particles(b)]...)
+
     normal_dist = fit(MvNormal, target_particles)
-    angle = POMDPs.action(ToNextML(mdp(p.p)), TagState(agent, mean(normal_dist)))
-    look = sqrt(det(cov(normal_dist))) > p.max_norm_std
+    mean_target = mean(normal_dist)
+    uncertainty = sqrt(det(cov(normal_dist)))
+
+    angle = POMDPs.action(ToNextML(mdp(p.p)), TagState(agent, mean_target))
+    look = uncertainty > p.max_norm_std
+
     return TagAction(look, angle)
 end
+
+# ----------------------------
+# NextMLFirst Heuristic
+# ----------------------------
 
 mutable struct NextMLFirst{RNG<:AbstractRNG}
     p::VDPTagMDP
@@ -73,7 +89,7 @@ function next_action(gen::NextMLFirst, mdp::Union{POMDP, MDP}, s::TagState, snod
     if n_children(snode) < 1
         return POMDPs.action(ToNextML(gen.p, gen.rng), s)
     else
-        return 2 * pi * rand(gen.rng)
+        return 2π * rand(gen.rng)
     end
 end
 
@@ -82,6 +98,10 @@ function next_action(gen::NextMLFirst, pomdp::Union{POMDP, MDP}, b, onode)
     ca = TagAction(false, next_action(gen, pomdp, s, onode))
     return convert_a(actiontype(pomdp), ca, pomdp)
 end
+
+# ----------------------------
+# Policy Translation
+# ----------------------------
 
 struct TranslatedPolicy{P<:Policy, T, ST, AT} <: Policy
     policy::P
@@ -107,12 +127,15 @@ function POMDPs.action(p::TranslatedPolicy, pc::AbstractParticleBelief)
     return convert_a(p.A, ca, p.translator)
 end
 
+# ----------------------------
+# Particle Mean Utility
+# ----------------------------
+
 function particle_mean(b::WeightedParticleBelief{TagState})
     ps = particles(b)
     ws = weights(b)
-    agent = ps[1].agent  # assume all have same agent
+
+    agent = ps[1].agent  # assume consistent across particles
     target = sum(w * p.target for (w, p) in zip(ws, ps))
     return TagState(agent, target)
 end
-
-
