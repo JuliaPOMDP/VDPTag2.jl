@@ -13,7 +13,18 @@ ToNextML(p::VDPTagProblem; rng=Random.GLOBAL_RNG) = ToNextML(mdp(p), rng)
 function POMDPs.action(p::ToNextML, s::TagState)
     next = next_ml_target(p.p, s.target)
     diff = next - s.agent
-    return atan(diff[2], diff[1])
+
+    if any(x -> !isfinite(x), diff)
+        error("Computed diff has NaN or Inf! agent=$(s.agent), next=$(next), diff=$(diff)")
+    end
+
+    angle = atan(diff[2], diff[1])
+
+    if !isfinite(angle)
+        error("Computed angle is not finite. diff = $diff")
+    end
+
+    return angle
 end
 
 function POMDPs.action(p::ToNextML, b::ParticleCollection{TagState})
