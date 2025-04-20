@@ -31,7 +31,7 @@ end
 @testset "Barrier Stop Sanity" begin
     barriers = CardinalBarriers(0.2, 1.8)
     for a in range(0.0, stop=2π, length=100)
-        s = TagState(Vec2(0,0), Vec2(1,1))
+        s = TagState(Vec2(0, 0), Vec2(1, 1))
         delta = 1.0 * 0.5 * Vec2(cos(a), sin(a))  # speed * step_size
         moved = barrier_stop(barriers, s.agent, delta)
         @test norm(moved - s.agent) ≤ norm(delta) + 1e-8
@@ -53,15 +53,20 @@ end
     @test length(state_hist(hist)) > 1
 end
 
+function sample_in_quadrant(rng, quadrant)
+    agent = rand(rng, Vec2) .* 5.0 .* quadrant
+    target = rand(rng, Vec2) .* 5.0 .* quadrant
+    return TagState(agent, target)
+end
+
 @testset "Barriers Block Movement" begin
     pomdp = VDPTagPOMDP(mdp=VDPTagMDP(barriers=CardinalBarriers(0.0, 100.0)))
     policy = ToNextML(pomdp)
     updater = BootstrapFilter(pomdp, 100)
 
-    for quadrant in [Vec2(1,1), Vec2(-1,1), Vec2(1,-1), Vec2(-1,-1)]
+    for quadrant in [Vec2(1, 1), Vec2(-1, 1), Vec2(1, -1), Vec2(-1, -1)]
         for _ in 1:10
-            s0 = rand(rng, initialstate(pomdp))
-            s0 = TagState(quadrant, s0.target)
+            s0 = sample_in_quadrant(rng, quadrant)
             hist = simulate(HistoryRecorder(max_steps=5), pomdp, policy, updater, s0)
             for s in state_hist(hist)
                 @test all(s.agent .* quadrant .>= 0.0)
@@ -75,11 +80,10 @@ end
     policy = ToNextML(pomdp)
     updater = BootstrapFilter(pomdp, 100)
 
-    for quadrant in [Vec2(1,1), Vec2(-1,1), Vec2(1,-1), Vec2(-1,-1)]
+    for quadrant in [Vec2(1, 1), Vec2(-1, 1), Vec2(1, -1), Vec2(-1, -1)]
         crossed = 0
         for _ in 1:25
-            s0 = rand(rng, initialstate(pomdp))
-            s0 = TagState(quadrant, s0.target)
+            s0 = sample_in_quadrant(rng, quadrant)
             hist = simulate(HistoryRecorder(max_steps=10), pomdp, policy, updater, s0)
             if any(s.agent .* quadrant .< 0.0 for s in state_hist(hist))
                 crossed += 1
