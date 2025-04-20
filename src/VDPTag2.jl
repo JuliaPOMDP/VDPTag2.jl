@@ -95,6 +95,10 @@ mdp(p::VDPTagPOMDP) = p.mdp
 # Target Model
 # -------------------------------
 
+# -------------------------------
+# Target Model
+# -------------------------------
+
 function target_speed(p::VDPTagMDP)
     return 0.5  # ✅ you can adjust this constant
 end
@@ -121,6 +125,10 @@ function next_ml_target(p::VDPTagMDP, target_pos::Vector{Float64})
     end
 
     return next_pos
+end
+
+function next_ml_target(p::VDPTagMDP, target_pos::SVector{2, Float64})
+    return next_ml_target(p, collect(target_pos))
 end
 
 # -------------------------------
