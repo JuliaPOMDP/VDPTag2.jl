@@ -13,7 +13,7 @@ using LinearAlgebra
 const Vec2 = SVector{2, Float64}
 const Vec8 = SVector{8, Float64}
 
-import Base.rand(rng::AbstractRNG, x::TagState)
+import Base: rand
 import MCTS: next_action, n_children
 import ParticleFilters: obs_weight
 import POMDPs: actions, isterminal
@@ -66,28 +66,28 @@ end
 # -------------------------------
 
 @with_kw struct VDPTagMDP{B} <: MDP{TagState, Float64}
-    mu::Float64          = 2.0
+    mu::Float64 = 2.0
     agent_speed::Float64 = 1.0
-    dt::Float64          = 0.1
-    step_size::Float64   = 0.5
-    tag_radius::Float64  = 0.1
-    tag_reward::Float64  = 100.0
-    step_cost::Float64   = 1.0
-    pos_std::Float64     = 0.05
-    barriers::B          = nothing
-    tag_terminate::Bool  = true
-    discount::Float64    = 0.95
-    goal::Vec2           = Vec2(5.0, 5.0)  # ✅ NEW FIELD
+    dt::Float64 = 0.1
+    step_size::Float64 = 0.5
+    tag_radius::Float64 = 0.1
+    tag_reward::Float64 = 100.0
+    step_cost::Float64 = 1.0
+    pos_std::Float64 = 0.05
+    barriers::B = nothing
+    tag_terminate::Bool = true
+    discount::Float64 = 0.95
+    goal::Vec2 = Vec2(5.0, 5.0)
 end
 
 @with_kw struct VDPTagPOMDP{B} <: POMDP{TagState, TagAction, Vec8}
-    mdp::VDPTagMDP{B}           = VDPTagMDP()
-    meas_cost::Float64          = 5.0
-    active_meas_std::Float64    = 0.1
-    meas_std::Float64           = 5.0
+    mdp::VDPTagMDP{B} = VDPTagMDP()
+    meas_cost::Float64 = 5.0
+    active_meas_std::Float64 = 0.1
+    meas_std::Float64 = 5.0
 end
 
-const VDPTagProblem = Union{VDPTagMDP,VDPTagPOMDP}
+const VDPTagProblem = Union{VDPTagMDP, VDPTagPOMDP}
 mdp(p::VDPTagMDP) = p
 mdp(p::VDPTagPOMDP) = p.mdp
 
@@ -96,7 +96,7 @@ mdp(p::VDPTagPOMDP) = p.mdp
 # -------------------------------
 
 function target_speed(p::VDPTagMDP)
-    return 0.5  # ✅ you can adjust this constant
+    return 0.5
 end
 
 function next_ml_target(p::VDPTagMDP, target_pos::Vector{Float64})
@@ -153,11 +153,7 @@ end
 
 function POMDPs.reward(pp::VDPTagProblem, s::TagState, a::Float64, sp::TagState)
     p = mdp(pp)
-    if norm(sp.agent - sp.target) < p.tag_radius
-        return p.tag_reward
-    else
-        return -p.step_cost
-    end
+    return norm(sp.agent - sp.target) < p.tag_radius ? p.tag_reward : -p.step_cost
 end
 
 POMDPs.discount(pp::VDPTagProblem) = mdp(pp).discount
@@ -193,24 +189,16 @@ end
 
 function rand(rng::AbstractRNG, d::BeamDist)
     o = MVector{8, Float64}(undef)
-    for i in 1:length(o)
-        if i == d.abeam
-            o[i] = rand(rng, d.an)
-        else
-            o[i] = rand(rng, d.n)
-        end
+    for i in 1:8
+        o[i] = i == d.abeam ? rand(rng, d.an) : rand(rng, d.n)
     end
     return SVector(o)
 end
 
 function POMDPs.pdf(d::BeamDist, o::Vec8)
     p = 1.0
-    for i in 1:length(o)
-        if i == d.abeam
-            p *= POMDPs.pdf(d.an, o[i])
-        else
-            p *= POMDPs.pdf(d.n, o[i])
-        end
+    for i in 1:8
+        p *= (i == d.abeam ? POMDPs.pdf(d.an, o[i]) : POMDPs.pdf(d.n, o[i]))
     end
     return p
 end
@@ -257,8 +245,8 @@ end
 # Random Sampling for TagState
 # -------------------------------
 
-function Base.rand(rng::AbstractRNG, ::TagState)
-    agent = rand(rng, SVector{2, Float64}) .* 10 .- 5  # uniform in [-5, 5]
+function rand(rng::AbstractRNG, ::TagState)
+    agent = rand(rng, SVector{2, Float64}) .* 10 .- 5
     target = rand(rng, SVector{2, Float64}) .* 10 .- 5
     return TagState(agent, target)
 end
