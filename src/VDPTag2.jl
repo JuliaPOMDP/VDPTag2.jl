@@ -98,14 +98,16 @@ function POMDPs.transition(pp::VDPTagProblem, s::TagState, a::Float64)
     ImplicitDistribution(pp, s, a) do pp, s, a, rng
         p = mdp(pp)
         targ = next_ml_target(p, s.target) + p.pos_std * SVector(randn(rng), randn(rng))
-        agent = barrier_stop(p.barriers, s.agent, p.agent_speed * p.step_size * SVector(cos(a), sin(a)))
+        agent_step = p.agent_speed * p.step_size * SVector(cos(a), sin(a))
+        agent = barrier_stop(p.barriers, s.agent, agent_step)
 
-        if any(isnan, targ) || any(isnan, agent)
-            error("Generated NaN in transition! agent=$agent, target=$targ")
+        if any(isnan, agent)
+            error("Generated NaN in transition! agent=$(agent), target=$(targ)")
         end
         return TagState(agent, targ)
     end
 end
+
 
 
 function POMDPs.reward(pp::VDPTagProblem, s::TagState, a::Float64, sp::TagState)
