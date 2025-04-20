@@ -34,6 +34,9 @@ jobs:
             Pkg.test(coverage=true)
           ' > test_output.log 2>&1 || (cat test_output.log && exit 1)
 
+      - name: Add Coverage.jl
+        run: julia --project=. -e 'using Pkg; Pkg.add("Coverage")'
+
       - name: Generate LCOV report
         run: |
           julia --project=. -e '
