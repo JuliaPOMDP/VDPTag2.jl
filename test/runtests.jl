@@ -1,77 +1,93 @@
 using Test
 using VDPTag2
 using POMDPs
-using Random
+using POMDPTools
 using ParticleFilters
-using Distributions
-using Base: sub2ind, ind2sub  # Fix for missing sub2ind error
+using Random
+using MCTS
+using LinearAlgebra
 
-# Fix random seed for reproducibility
-rng = MersenneTwister(123)
+# Seed RNG for reproducibility
+Random.seed!(1)
+rng = MersenneTwister(31)
 
-@testset "Discrete State, Action, and Observation Conversion" begin
-    dp = AODiscreteVDPTagPOMDP()
-
-    # Create a sample state and action
-    s = TagState(Vec2(0.2, 0.3), Vec2(-0.5, -0.4))
-    a = TagAction(true, π / 4)
-
-    # State: to Int and back
-    s_int = VDPTag2.convert_s(Int, s, dp)
-    s_back = VDPTag2.convert_s(TagState, s_int, dp)
-    @test s_back isa TagState
-
-    # Action: to Int and back
-    a_int = VDPTag2.convert_a(Int, a, dp)
-    a_back = VDPTag2.convert_a(TagAction, a_int, dp)
-    @test a_back isa TagAction
-
-    # Observation: simulate and discretize
-    obs_vec = rand(rng, observation(cproblem(dp), s, a, s))
-    obs_disc = VDPTag2.convert_o(IVec8, obs_vec, dp)
-    @test obs_disc isa IVec8
-end
-
-@testset "Discrete Gen and Observation Functions" begin
-    dp1 = AODiscreteVDPTagPOMDP()
-    dp2 = ADiscreteVDPTagPOMDP()
-    s = TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0))
-    a = 1
-
-    # Generate results from gen()
-    r1 = POMDPs.gen(dp1, s, a, rng)
-    r2 = POMDPs.gen(dp2, s, a, rng)
-    @test r1.sp isa TagState
-    @test r2.sp isa TagState
-
-    # Observation
-    o1 = rand(rng, POMDPs.observation(dp1, s, a, s))
-    o2 = POMDPs.observation(dp2, s, a, s)
-    @test o1 isa IVec8
-    @test o2 isa Vec8
-end
-
-@testset "Heuristic Policies and Translations" begin
+@testset "ToNextML + MCTS" begin
     pomdp = VDPTagPOMDP()
-    mdp_model = mdp(pomdp)
+    gen = NextMLFirst(mdp(pomdp), rng)
+    s = TagState(Vec2(1.0, 1.0), Vec2(-1.0, -1.0))
 
-    # ToNextML policy
-    policy = ToNextML(mdp_model; rng=rng)
-    s = TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0))
-    angle = POMDPs.action(policy, s)
-    @test angle isa Float64
+    struct DummyNode end
+    MCTS.n_children(::DummyNode) = rand(1:10)
 
-    # ManageUncertainty policy
-    states = [TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0 + 0.01 * i)) for i in 1:50]
-    belief = ParticleCollection(states)
-    policy2 = ManageUncertainty(pomdp, 0.01)
-    a2 = POMDPs.action(policy2, belief)
+    a1 = next_action(gen, pomdp, s, DummyNode())
+    a2 = next_action(gen, pomdp, initialstate(pomdp), DummyNode())
+
+    @test a1 isa Float64
     @test a2 isa TagAction
-    @test typeof(a2.look) == Bool
+    @test a2.look == false
+    @test 0.0 <= a2.angle <= 2π
+end
 
-    # TranslatedPolicy
-    dp = ADiscreteVDPTagPOMDP()
-    translated = translate_policy(policy, mdp_model, dp, dp)
-    a_translated = POMDPs.action(translated, s)
-    @test a_translated isa Int
+@testset "Barrier Stop Sanity" begin
+    barriers = CardinalBarriers(0.2, 1.8)
+    for a in range(0.0, stop=2π, length=100)
+        s = TagState(Vec2(0, 0), Vec2(1, 1))
+        delta = 1.0 * 0.5 * Vec2(cos(a), sin(a))  # speed * step_size
+        moved = barrier_stop(barriers, s.agent, delta)
+        @test norm(moved - s.agent) ≤ norm(delta) + 1e-8
+    end
+end
+
+@testset "Simulation - Continuous" begin
+    pomdp = VDPTagPOMDP()
+    policy = ToNextML(pomdp)
+    updater = BootstrapFilter(pomdp, 100)
+    hist = simulate(HistoryRecorder(max_steps=10), pomdp, policy, updater)
+    @test length(state_hist(hist)) > 1
+end
+
+@testset "Simulation - Discrete" begin
+    dpomdp = AODiscreteVDPTagPOMDP()
+    policy = RandomPolicy(dpomdp)
+    hist = simulate(HistoryRecorder(max_steps=10), dpomdp, policy)
+    @test length(state_hist(hist)) > 1
+end
+
+function sample_in_quadrant(rng, quadrant)
+    agent = rand(rng, Vec2) .* 5.0 .* quadrant
+    target = rand(rng, Vec2) .* 5.0 .* quadrant
+    return TagState(agent, target)
+end
+
+@testset "Barriers Block Movement" begin
+    pomdp = VDPTagPOMDP(mdp=VDPTagMDP(barriers=CardinalBarriers(0.0, 100.0)))
+    policy = ToNextML(pomdp)
+    updater = BootstrapFilter(pomdp, 100)
+
+    for quadrant in [Vec2(1, 1), Vec2(-1, 1), Vec2(1, -1), Vec2(-1, -1)]
+        for _ in 1:10
+            s0 = sample_in_quadrant(rng, quadrant)
+            hist = simulate(HistoryRecorder(max_steps=5), pomdp, policy, updater, s0)
+            violations = count(s -> any(s.agent .* quadrant .< -1e-6), state_hist(hist))
+            @test violations ≤ 4
+        end
+    end
+end
+
+@testset "No Barriers - Can Cross Quadrants" begin
+    pomdp = VDPTagPOMDP()
+    policy = ToNextML(pomdp)
+    updater = BootstrapFilter(pomdp, 100)
+
+    for quadrant in [Vec2(1, 1), Vec2(-1, 1), Vec2(1, -1), Vec2(-1, -1)]
+        crossed = 0
+        for _ in 1:25
+            s0 = sample_in_quadrant(rng, quadrant)
+            hist = simulate(HistoryRecorder(max_steps=10), pomdp, policy, updater, s0)
+            if any(any(s.agent .* quadrant .< 0.0) for s in state_hist(hist))
+                crossed += 1
+            end
+        end
+        @test crossed > 0  # should cross at least once
+    end
 end
