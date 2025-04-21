@@ -179,4 +179,57 @@ end
         Plots.quiver(p)  # Should render arrows and call plot! on barriers
         # no assert needed unless we wrap in try/catch
     end
+    @testset "DiscreteVDPTagProblem Conversions and Gen" begin
+    rng = MersenneTwister(123)
+    
+    # Create instances of both types
+    dpomdp = ADiscreteVDPTagPOMDP()
+    aopomdp = AODiscreteVDPTagPOMDP()
+
+    # --- State Conversion ---
+    s = TagState(Vec2(0.0, 0.0), Vec2(0.5, -0.5))
+    idx = VDPTag2.convert_s(Int, s, dpomdp)
+    s_back = VDPTag2.convert_s(TagState, idx, dpomdp)
+    @test isa(idx, Int)
+    @test isa(s_back, TagState)
+    @test isfinite.(s_back.agent) |> all
+    @test isfinite.(s_back.target) |> all
+
+    # --- Action Conversion ---
+    for angle in [0.0, π/2, π, 3π/2]
+        i = VDPTag2.convert_a(Int, angle, dpomdp)
+        a = VDPTag2.convert_a(Float64, i, dpomdp)
+        @test isa(i, Int)
+        @test isfinite(a)
+    end
+
+    tag_action = TagAction(true, π/4)
+    ai = VDPTag2.convert_a(Int, tag_action, dpomdp)
+    back = VDPTag2.convert_a(TagAction, ai, dpomdp)
+    @test isa(back, TagAction)
+    @test typeof(back.look) == Bool
+
+    # --- Observation Conversion ---
+    obs = @SVector rand(8)
+    o_disc = VDPTag2.convert_o(IVec8, obs, aopomdp)
+    @test isa(o_disc, IVec8)
+
+    # --- Action Sampling and Gen ---
+    a = rand(POMDPs.actions(dpomdp))
+    res1 = POMDPs.gen(dpomdp, s, a, rng)
+    res2 = POMDPs.gen(aopomdp, s, a, rng)
+    @test haskey(res1, :sp)
+    @test haskey(res2, :o)
+
+    # --- Observation Sampling ---
+    ob1 = POMDPs.observation(dpomdp, s, a, s)
+    ob2 = rand(POMDPs.observation(aopomdp, s, a, s), rng)
+    @test isa(ob1, Vec8)
+    @test isa(ob2, IVec8)
+
+    # --- Other interface tests ---
+    @test POMDPs.discount(dpomdp) ≈ 0.95
+    @test !POMDPs.isterminal(dpomdp, idx)
+    @test POMDPs.initialstate(dpomdp) isa VDPInitDist
+    end
 end
