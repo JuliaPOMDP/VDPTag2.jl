@@ -1,4 +1,5 @@
 using Test
+using StaticArrays
 using VDPTag2
 using POMDPs
 using POMDPTools
@@ -6,8 +7,9 @@ using ParticleFilters
 using Random
 using MCTS
 using LinearAlgebra
-const Vec8 = SVector{8, Float64}
 
+const Vec8 = SVector{8, Float64}
+const IVec8 = SVector{8, Int}
 # Seed RNG for reproducibility
 Random.seed!(1)
 rng = MersenneTwister(31)
