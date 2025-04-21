@@ -62,17 +62,18 @@ struct ManageUncertainty <: Policy
 end
 
 function POMDPs.action(p::ManageUncertainty, b::ParticleCollection{TagState})
+function POMDPs.action(p::ManageUncertainty, b::ParticleCollection{TagState})
     agent = first(particles(b)).agent
     target_particles = Matrix(hcat([s.target for s in particles(b)]...))
 
-    # Handle potential non-positive-definite covariance matrix
+    # Fit with fallback in case of numerical issues
     try
         normal_dist = fit(MvNormal, target_particles)
     catch e
         if isa(e, PosDefException)
-            μ = mean(target_particles, dims=2)
-            Σ = cov(target_particles) + 1e-6I  # Regularize
-            normal_dist = MvNormal(vec(μ), Σ)
+            μ = vec(mean(target_particles, dims=2))  # ensure 1D vector
+            Σ = cov(target_particles) + 1e-6I        # regularize
+            normal_dist = MvNormal(μ, Σ)
         else
             rethrow(e)
         end
@@ -86,6 +87,7 @@ function POMDPs.action(p::ManageUncertainty, b::ParticleCollection{TagState})
 
     return TagAction(look, angle)
 end
+
 # ----------------------------
 # NextMLFirst Heuristic
 # ----------------------------
