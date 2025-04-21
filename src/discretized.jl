@@ -1,5 +1,6 @@
 import POMDPs.initialstate
 import Base: sub2ind, ind2sub
+using Base: sub2ind
 
 const IVec8 = SVector{8, Int}
 
