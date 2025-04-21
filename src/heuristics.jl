@@ -62,16 +62,13 @@ struct ManageUncertainty <: Policy
 end
 function POMDPs.action(p::ManageUncertainty, b::ParticleCollection{TagState})
     agent = first(particles(b)).agent
-    targets = [s.target for s in particles(b)]
-    target_particles = hcat(targets...)  # 2 x N matrix
+    target_particles = Matrix(hcat([s.target for s in particles(b)]...))  # ← fixed
 
-    # Handle edge case: too few or degenerate samples
     if size(target_particles, 2) < 2
         mean_target = vec(mean(target_particles, dims=2))
         uncertainty = 0.0
     else
         try
-            # Attempt to fit a multivariate Gaussian
             normal_dist = fit(MvNormal, target_particles)
             mean_target = mean(normal_dist)
             uncertainty = sqrt(det(cov(normal_dist)))
