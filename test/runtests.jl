@@ -1,3 +1,4 @@
+import VDPTag2: convert_s, convert_a, convert_o
 using Test
 using VDPTag2
 using POMDPs
