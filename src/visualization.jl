@@ -34,8 +34,11 @@ end
     @series mdp(pomdp), h
     @series begin
         label := "belief"
-        belief_hist(h)[end]
+        VDPTag2.ParticleCollection(particles(belief_hist(h)[end]))
     end
+end
+
+
 end
 
 @recipe function f(p::VDPTagProblem, h::POMDPTools.AbstractSimHistory)
