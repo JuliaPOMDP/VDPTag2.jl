@@ -141,11 +141,11 @@ end
 
     # 2. convert_o fallback
     x = Vec8(randn(8))
-    @test convert_o(Vec8, x, p_adisc) == x
+    @test VDPTag2.convert_o(Vec8, x, p_adisc) == x
 
     # 3. convert_s roundtrip
     state = TagState(Vec2(0.2, -0.4), Vec2(-0.8, 0.9))
-    s_idx = convert_s(Int, state, p_adisc)
+    s_idx = VDPTag2.convert_s(Int, state, p_adisc)
     restored = convert_s(TagState, s_idx, p_adisc)
     @test all(isfinite, restored.agent)
     @test all(isfinite, restored.target)
