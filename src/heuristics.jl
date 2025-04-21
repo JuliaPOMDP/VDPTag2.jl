@@ -62,26 +62,34 @@ struct ManageUncertainty <: Policy
 end
 function POMDPs.action(p::ManageUncertainty, b::ParticleCollection{TagState})
     agent = first(particles(b)).agent
-    target_particles = Matrix(hcat([s.target for s in particles(b)]...))
+    targets = [s.target for s in particles(b)]
+    target_particles = hcat(targets...)  # 2 x N matrix
 
-    try
-        normal_dist = fit(MvNormal, target_particles)
-    catch e
-        if isa(e, PosDefException) || isa(e, DimensionMismatch)
-            μ = vec(mean(target_particles, dims=2))
-            Σ = cov(target_particles; dims=2) + 1e-6I
-            normal_dist = MvNormal(μ, Σ)
-        else
-            rethrow(e)
+    # Handle edge case: too few or degenerate samples
+    if size(target_particles, 2) < 2
+        mean_target = vec(mean(target_particles, dims=2))
+        uncertainty = 0.0
+    else
+        try
+            # Attempt to fit a multivariate Gaussian
+            normal_dist = fit(MvNormal, target_particles)
+            mean_target = mean(normal_dist)
+            uncertainty = sqrt(det(cov(normal_dist)))
+        catch e
+            if isa(e, PosDefException) || isa(e, DimensionMismatch)
+                μ = vec(mean(target_particles, dims=2))
+                Σ = cov(target_particles; dims=2) + 1e-6I
+                normal_dist = MvNormal(μ, Σ)
+                mean_target = mean(normal_dist)
+                uncertainty = sqrt(det(Σ))
+            else
+                rethrow(e)
+            end
         end
     end
 
-    mean_target = mean(normal_dist)
-    uncertainty = sqrt(det(cov(normal_dist)))
-
     angle = POMDPs.action(ToNextML(mdp(p.p)), TagState(agent, mean_target))
     look = uncertainty > p.max_norm_std
-
     return TagAction(look, angle)
 end
 
