@@ -91,4 +91,41 @@ end
         @test crossed > 0  # should cross at least once
     end
 end
+@testset "ToNextML Action on ParticleCollection" begin
+    pomdp = VDPTagPOMDP()
+    policy = ToNextML(pomdp; rng=rng)
+    particles = ParticleCollection([TagState([0.0, 0.0], [1.0, 1.0]) for _ in 1:20])
+
+    a = action(policy, particles)
+    @test isa(a, TagAction)
+    @test a.look == false
+    @test isfinite(a.angle)
+end
+@testset "ToNextMLSolver - Continuous Problem" begin
+    solver = ToNextMLSolver(rng)
+    problem = VDPTagPOMDP()
+    policy = solve(solver, problem)
+
+    @test isa(policy, ToNextML)
+end
+@testset "ToNextMLSolver - Discrete Problem" begin
+    solver = ToNextMLSolver(rng)
+    problem = AODiscreteVDPTagPOMDP()
+    policy = solve(solver, problem)
+
+    @test isa(policy, TranslatedPolicy)
+end
+@testset "ManageUncertainty Action" begin
+    pomdp = VDPTagPOMDP()
+    policy = ManageUncertainty(pomdp, 0.1)
+
+    belief = ParticleCollection([
+        TagState([0.0, 0.0], [randn(), randn()]) for _ in 1:50
+    ])
+
+    a = action(policy, belief)
+    @test isa(a, TagAction)
+    @test typeof(a.look) == Bool
+    @test isfinite(a.angle)
+end
 
