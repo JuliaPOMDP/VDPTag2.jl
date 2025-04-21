@@ -56,37 +56,23 @@ end
 # ----------------------------
 # ManageUncertainty Policy
 # ----------------------------
+
 struct ManageUncertainty <: Policy
     p::VDPTagPOMDP
     max_norm_std::Float64
 end
+
 function POMDPs.action(p::ManageUncertainty, b::ParticleCollection{TagState})
     agent = first(particles(b)).agent
-    target_particles = Matrix(hcat([s.target for s in particles(b)]...))  # ← fixed
+    target_particles = hcat([s.target for s in particles(b)]...)
 
-    if size(target_particles, 2) < 2
-        mean_target = vec(mean(target_particles, dims=2))
-        uncertainty = 0.0
-    else
-        try
-            normal_dist = fit(MvNormal, target_particles)
-            mean_target = mean(normal_dist)
-            uncertainty = sqrt(det(cov(normal_dist)))
-        catch e
-            if isa(e, PosDefException) || isa(e, DimensionMismatch)
-                μ = vec(mean(target_particles, dims=2))
-                Σ = cov(target_particles; dims=2) + 1e-6I
-                normal_dist = MvNormal(μ, Σ)
-                mean_target = mean(normal_dist)
-                uncertainty = sqrt(det(Σ))
-            else
-                rethrow(e)
-            end
-        end
-    end
+    normal_dist = fit(MvNormal, target_particles)
+    mean_target = mean(normal_dist)
+    uncertainty = sqrt(det(cov(normal_dist)))
 
     angle = POMDPs.action(ToNextML(mdp(p.p)), TagState(agent, mean_target))
     look = uncertainty > p.max_norm_std
+
     return TagAction(look, angle)
 end
 
