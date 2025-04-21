@@ -1,4 +1,6 @@
 import POMDPs.initialstate
+import Base: sub2ind, ind2sub
+
 const IVec8 = SVector{8, Int}
 
 @with_kw struct AODiscreteVDPTagPOMDP{B} <: POMDP{TagState, Int, IVec8}
