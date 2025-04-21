@@ -102,9 +102,10 @@ end
     act = POMDPs.action(trans, s)
     @test act isa Int
 
-    belief = ParticleCollection([TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0 + 0.01*i)) for i in 1:10])
-    mpol = ManageUncertainty(pomdp, 0.001)
-    a = POMDPs.action(mpol, belief)
+    belief_states = [TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0 + 0.01*i)) for i in 1:10]
+    belief = ParticleCollection(belief_states)
+    policy_uncert = ManageUncertainty(pomdp, 0.001)
+    a = POMDPs.action(policy_uncert, belief)
     @test a isa TagAction
 
     # Discretized conversions
