@@ -129,3 +129,54 @@ end
     @test isfinite(a.angle)
 end
 
+@testset "RK4 and VDP Dynamics" begin
+    p = VDPTagMDP(mu=1.0, dt=0.1)
+    pos = Vec2(1.0, 0.0)
+    
+    # Check vdp_dynamics directly
+    dpos = vdp_dynamics(p.mu, pos)
+    @test isa(dpos, Vec2)
+    @test length(dpos) == 2
+    @test isfinite.(dpos) |> all
+
+    # Check rk4step output
+    new_pos = rk4step(p, pos)
+    @test isa(new_pos, Vec2)
+    @test length(new_pos) == 2
+    @test isfinite.(new_pos) |> all
+end
+
+@testset "Plot Recipes Execution" begin
+    using Plots
+
+    p = VDPTagPOMDP()
+    mdp_obj = mdp(p)
+    dummy_hist = simulate(HistoryRecorder(max_steps=3), p, RandomPolicy(p), BootstrapFilter(p, 10))
+    pc = ParticleCollection([TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0)) for _ in 1:5])
+
+    # These checks confirm that plotting doesn't error (basic coverage)
+    @testset "Single Object Recipes" begin
+        plt1 = plot(mdp_obj)
+        @test plt1 isa Plots.Plot
+    end
+
+    @testset "POMDP + History Plot" begin
+        plt2 = plot(p, dummy_hist)
+        @test plt2 isa Plots.Plot
+    end
+
+    @testset "Problem + History Plot" begin
+        plt3 = plot(mdp_obj, dummy_hist)
+        @test plt3 isa Plots.Plot
+    end
+
+    @testset "ParticleCollection Plot" begin
+        plt4 = plot(pc)
+        @test plt4 isa Plots.Plot
+    end
+
+    @testset "Quiver Plot" begin
+        Plots.quiver(p)  # Should render arrows and call plot! on barriers
+        # no assert needed unless we wrap in try/catch
+    end
+end
