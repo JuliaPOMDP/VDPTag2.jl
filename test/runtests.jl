@@ -6,6 +6,7 @@ using ParticleFilters
 using Random
 using MCTS
 using LinearAlgebra
+using StaticArrays: @SVector  
 
 # Seed RNG for reproducibility
 Random.seed!(1)
