@@ -60,8 +60,6 @@ struct ManageUncertainty <: Policy
     p::VDPTagPOMDP
     max_norm_std::Float64
 end
-
-function POMDPs.action(p::ManageUncertainty, b::ParticleCollection{TagState})
 function POMDPs.action(p::ManageUncertainty, b::ParticleCollection{TagState})
     agent = first(particles(b)).agent
     target_particles = Matrix(hcat([s.target for s in particles(b)]...))
