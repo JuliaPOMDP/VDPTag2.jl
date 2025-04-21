@@ -56,7 +56,6 @@ end
 # ----------------------------
 # ManageUncertainty Policy
 # ----------------------------
-
 struct ManageUncertainty <: Policy
     p::VDPTagPOMDP
     max_norm_std::Float64
@@ -65,7 +64,20 @@ end
 function POMDPs.action(p::ManageUncertainty, b::ParticleCollection{TagState})
     agent = first(particles(b)).agent
     target_particles = Matrix(hcat([s.target for s in particles(b)]...))
-    normal_dist = fit(MvNormal, target_particles)
+
+    # Handle potential non-positive-definite covariance matrix
+    try
+        normal_dist = fit(MvNormal, target_particles)
+    catch e
+        if isa(e, PosDefException)
+            μ = mean(target_particles, dims=2)
+            Σ = cov(target_particles) + 1e-6I  # Regularize
+            normal_dist = MvNormal(vec(μ), Σ)
+        else
+            rethrow(e)
+        end
+    end
+
     mean_target = mean(normal_dist)
     uncertainty = sqrt(det(cov(normal_dist)))
 
@@ -74,7 +86,6 @@ function POMDPs.action(p::ManageUncertainty, b::ParticleCollection{TagState})
 
     return TagAction(look, angle)
 end
-
 # ----------------------------
 # NextMLFirst Heuristic
 # ----------------------------
