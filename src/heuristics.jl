@@ -64,13 +64,12 @@ function POMDPs.action(p::ManageUncertainty, b::ParticleCollection{TagState})
     agent = first(particles(b)).agent
     target_particles = Matrix(hcat([s.target for s in particles(b)]...))
 
-    # Fit with fallback in case of numerical issues
     try
         normal_dist = fit(MvNormal, target_particles)
     catch e
-        if isa(e, PosDefException)
-            μ = vec(mean(target_particles, dims=2))  # ensure 1D vector
-            Σ = cov(target_particles) + 1e-6I        # regularize
+        if isa(e, PosDefException) || isa(e, DimensionMismatch)
+            μ = vec(mean(target_particles, dims=2))
+            Σ = cov(target_particles; dims=2) + 1e-6I
             normal_dist = MvNormal(μ, Σ)
         else
             rethrow(e)
