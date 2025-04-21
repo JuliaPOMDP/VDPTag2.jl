@@ -64,7 +64,7 @@ end
 
 function POMDPs.action(p::ManageUncertainty, b::ParticleCollection{TagState})
     agent = first(particles(b)).agent
-    target_particles = hcat([s.target for s in particles(b)]...)
+    target_particles = Matrix(hcat([s.target for s in particles(b)]...))
 
     normal_dist = fit(MvNormal, target_particles)
     mean_target = mean(normal_dist)
