@@ -1,11 +1,11 @@
 import VDPTag2: convert_s, convert_a, convert_o
 import POMDPs
-import Base: sub2ind, ind2sub
 using Test
 using VDPTag2
 using Random
 using ParticleFilters
 using Distributions
+using LinearAlgebra: sub2ind, ind2sub
 
 # Set up consistent randomness
 rng = MersenneTwister(123)
