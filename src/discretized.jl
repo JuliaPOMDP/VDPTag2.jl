@@ -31,12 +31,14 @@ convert_o(::Type{T}, x::T, p) where T = x
 # state
 function convert_s(::Type{Int}, s::TagState, p::DiscreteVDPTagProblem)
     n = p.n_bins
-    factor = n/(2*p.grid_lim)
-    ai = clamp(ceil(Int, (s.agent[1]+p.grid_lim)*factor), 1, n)
-    aj = clamp(ceil(Int, (s.agent[2]+p.grid_lim)*factor), 1, n)
-    ti = clamp(ceil(Int, (s.target[1]+p.grid_lim)*factor), 1, n)
-    tj = clamp(ceil(Int, (s.target[2]+p.grid_lim)*factor), 1, n)
-    return sub2ind((n,n,n,n), ai, aj, ti, tj)
+    factor = n / (2 * p.grid_lim)
+    ai = clamp(ceil(Int, (s.agent[1] + p.grid_lim) * factor), 1, n)
+    aj = clamp(ceil(Int, (s.agent[2] + p.grid_lim) * factor), 1, n)
+    ti = clamp(ceil(Int, (s.target[1] + p.grid_lim) * factor), 1, n)
+    tj = clamp(ceil(Int, (s.target[2] + p.grid_lim) * factor), 1, n)
+
+    inds = LinearIndices((n, n, n, n))
+    return inds[ai, aj, ti, tj]
 end
 function convert_s(::Type{TagState}, s::Int, p::DiscreteVDPTagProblem)
     n = p.n_bins
