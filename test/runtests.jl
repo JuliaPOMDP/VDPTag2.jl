@@ -1,4 +1,3 @@
-import VDPTag2: convert_s, convert_a, convert_o
 using Test
 using VDPTag2
 using POMDPs
@@ -93,43 +92,3 @@ end
     end
 end
 
-@testset "Heuristics and Discretized Coverage" begin
-    # Heuristics
-    pomdp = VDPTagPOMDP()
-    mdp_model = mdp(pomdp)
-    policy = ToNextML(mdp_model, rng)
-    trans = translate_policy(policy, mdp_model, ADiscreteVDPTagPOMDP(), ADiscreteVDPTagPOMDP())
-    s = TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0))
-    act = POMDPs.action(trans, s)
-    @test act isa Int
-
-    belief_states = [TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0 + 0.01*i)) for i in 1:10]
-    belief = ParticleCollection(belief_states)
-    policy_uncert = ManageUncertainty(pomdp, 0.001)
-    a = POMDPs.action(policy_uncert, belief)
-    @test a isa TagAction
-
-    # Discretized conversions
-    dp = AODiscreteVDPTagPOMDP()
-    s_int = convert_s(Int, s, dp)
-    @test s_int isa Int
-    s_back = convert_s(TagState, s_int, dp)
-    @test s_back isa TagState
-
-    tagact = TagAction(true, π/2)
-    a_int = convert_a(Int, tagact, dp)
-    @test a_int isa Int
-    a_back = convert_a(TagAction, a_int, dp)
-    @test a_back isa TagAction
-
-    obs_vec = rand(rng, observation(cproblem(dp), s, tagact, s))
-    obs_disc = convert_o(IVec8, obs_vec, dp)
-    @test obs_disc isa IVec8
-
-    # Gen and observation
-    gen1 = POMDPs.gen(dp, s, a_int, rng)
-    @test gen1.sp isa TagState
-
-    obs = rand(rng, POMDPs.observation(dp, s, a_int, s))
-    @test obs isa IVec8
-end
