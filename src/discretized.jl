@@ -1,6 +1,5 @@
 import POMDPs.initialstate
 using LinearAlgebra
-using Base: sub2ind, ind2sub
 
 const Vec8 = SVector{8, Float64}
 const IVec8 = SVector{8, Int}
@@ -29,6 +28,23 @@ convert_s(::Type{T}, x::T, p) where T = x
 convert_a(::Type{T}, x::T, p) where T = x
 convert_o(::Type{T}, x::T, p) where T = x
 
+# Custom sub2ind and ind2sub for 4D arrays
+function sub2ind_4d(dims::NTuple{4, Int}, i::Int, j::Int, k::Int, l::Int)
+    n1, n2, n3, n4 = dims
+    return i + (j-1)*n1 + (k-1)*n1*n2 + (l-1)*n1*n2*n3
+end
+
+function ind2sub_4d(dims::NTuple{4, Int}, idx::Int)
+    n1, n2, n3, n4 = dims
+    l = div(idx-1, n1*n2*n3) + 1
+    rem1 = mod(idx-1, n1*n2*n3)
+    k = div(rem1, n1*n2) + 1
+    rem2 = mod(rem1, n1*n2)
+    j = div(rem2, n1) + 1
+    i = mod(rem2, n1) + 1
+    return i, j, k, l
+end
+
 # state
 function convert_s(::Type{Int}, s::TagState, p::DiscreteVDPTagProblem)
     n = p.n_bins
@@ -37,13 +53,13 @@ function convert_s(::Type{Int}, s::TagState, p::DiscreteVDPTagProblem)
     aj = clamp(ceil(Int, (s.agent[2] + p.grid_lim) * factor), 1, n)
     ti = clamp(ceil(Int, (s.target[1] + p.grid_lim) * factor), 1, n)
     tj = clamp(ceil(Int, (s.target[2] + p.grid_lim) * factor), 1, n)
-    return Base.sub2ind((n, n, n, n), ai, aj, ti, tj)
+    return sub2ind_4d((n, n, n, n), ai, aj, ti, tj)
 end
 
 function convert_s(::Type{TagState}, s::Int, p::DiscreteVDPTagProblem)
     n = p.n_bins
     factor = 2 * p.grid_lim / n
-    ai, aj, ti, tj = Base.ind2sub((n, n, n, n), s)
+    ai, aj, ti, tj = ind2sub_4d((n, n, n, n), s)
     return TagState((Vec2(ai, aj) .- 0.5) .* factor .- p.grid_lim,
                     (Vec2(ti, tj) .- 0.5) .* factor .- p.grid_lim)
 end
@@ -113,6 +129,7 @@ function POMDPs.observation(p::AODiscreteVDPTagPOMDP, s::TagState, a::Int, sp::T
 end
 
 POMDPs.initialstate(p::DiscreteVDPTagProblem) = VDPInitDist()
+
 
 
 #=
