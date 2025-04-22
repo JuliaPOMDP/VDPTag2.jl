@@ -210,12 +210,10 @@ end
     @test plt isa Plots.Plot
 end
 
-@testset "Plot VDPTagPOMDP with History" begin
-    pomdp = VDPTagPOMDP()
-    policy = ToNextML(pomdp)
-    updater = BootstrapFilter(pomdp, 10)
-    h = simulate(HistoryRecorder(max_steps=5), pomdp, policy, updater)
-    plt = plot(pomdp, h)
+@testset "Plot VDPTagProblem with CardinalBarriers" begin
+    m = VDPTag2.VDPTagMDP(barriers=VDPTag2.CardinalBarriers(0.2, 1.8))
+    p = VDPTag2.VDPTagProblem(m)
+    plt = plot(p)
     @test plt isa Plots.Plot
 end
 
