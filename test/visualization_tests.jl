@@ -1,23 +1,11 @@
 using Test
-using VDPTag2
-using POMDPs
-using POMDPTools
-using ParticleFilters
-using Random
-using MCTS
-using LinearAlgebra
-using StaticArrays: @SVector
 using Plots
-
-const IVec8 = VDPTag2.IVec8
-const Vec8 = VDPTag2.Vec8
-import VDPTag2: VDPInitDist
-
+using POMDPTools
+using VDPTag2: VDPTagProblem, VDPTagPOMDP, TagState, ParticleCollection, mdp, Vec2
 
 @testset "Visualization Recipes" begin
-    # Create a dummy VDPTagProblem
-    m = VDPTagMDP()
-    p = VDPTagProblem(m)
+    pomdp = VDPTagPOMDP()
+    p = mdp(pomdp)
 
     # Plot the VDPTagProblem (covers: @recipe function f(p::VDPTagProblem))
     @test begin
@@ -26,7 +14,6 @@ import VDPTag2: VDPInitDist
     end
 
     # Create a dummy history
-    pomdp = VDPTagPOMDP(m)
     sim = RolloutSimulator()
     hist = simulate(sim, pomdp, RandomPolicy(pomdp), 3)
 
@@ -49,3 +36,4 @@ import VDPTag2: VDPInitDist
         !isempty(plt.series_list)
     end
 end
+
