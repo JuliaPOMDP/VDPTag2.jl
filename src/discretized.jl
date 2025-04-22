@@ -130,8 +130,6 @@ end
 
 POMDPs.initialstate(p::DiscreteVDPTagProblem) = VDPInitDist()
 
-
-
 #=
 gauss_cdf(mean, std, x) = 0.5*(1.0+erf((x-mean)/(std*sqrt(2))))
 function obs_weight(p::AODiscreteVDPTagPOMDP, a::Int, sp::TagState, o::Int)
