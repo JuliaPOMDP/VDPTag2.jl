@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        julia-version: ['1.9']
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Julia
+        uses: julia-actions/setup-julia@v1
+        with:
+          version: ${{ matrix.julia-version }}
+
+      - name: Install dependencies
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate()'
+
+      - name: Run tests
+        run: |
+          julia --project=. -e '
+            using Pkg
+            Pkg.test(coverage=true)
+          '
+
+      - name: Add Coverage.jl
+        run: julia --project=. -e 'using Pkg; Pkg.add("Coverage")'
+
+      - name: Generate LCOV report
+        run: |
+          julia --project=. -e '
+            using Coverage
+            LCOV.writefile("lcov.info", process_folder("."))
+          '
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: Aero-Spec/VDPTag2.jl
+          files: lcov.info

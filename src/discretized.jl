@@ -1,17 +1,23 @@
 import POMDPs.initialstate
+using LinearAlgebra
+
+const Vec8 = SVector{8, Float64}
 const IVec8 = SVector{8, Int}
 
 @with_kw struct AODiscreteVDPTagPOMDP{B} <: POMDP{TagState, Int, IVec8}
     cpomdp::VDPTagPOMDP{B}  = VDPTagPOMDP()
     n_angles::Int           = 10
     binsize::Float64        = 0.5
+    n_bins::Int             = 10
+    grid_lim::Float64       = 1.0
 end
 
 @with_kw struct ADiscreteVDPTagPOMDP{B} <: POMDP{TagState, Int, Vec8}
     cpomdp::VDPTagPOMDP{B}  = VDPTagPOMDP()
     n_angles::Int           = 10
+    n_bins::Int             = 10
+    grid_lim::Float64       = 1.0
 end
-
 
 const DiscreteVDPTagProblem = Union{AODiscreteVDPTagPOMDP, ADiscreteVDPTagPOMDP}
 
@@ -22,26 +28,45 @@ convert_s(::Type{T}, x::T, p) where T = x
 convert_a(::Type{T}, x::T, p) where T = x
 convert_o(::Type{T}, x::T, p) where T = x
 
+# Custom sub2ind and ind2sub for 4D arrays
+function sub2ind_4d(dims::NTuple{4, Int}, i::Int, j::Int, k::Int, l::Int)
+    n1, n2, n3, n4 = dims
+    return i + (j-1)*n1 + (k-1)*n1*n2 + (l-1)*n1*n2*n3
+end
+
+function ind2sub_4d(dims::NTuple{4, Int}, idx::Int)
+    n1, n2, n3, n4 = dims
+    l = div(idx-1, n1*n2*n3) + 1
+    rem1 = mod(idx-1, n1*n2*n3)
+    k = div(rem1, n1*n2) + 1
+    rem2 = mod(rem1, n1*n2)
+    j = div(rem2, n1) + 1
+    i = mod(rem2, n1) + 1
+    return i, j, k, l
+end
+
 # state
 function convert_s(::Type{Int}, s::TagState, p::DiscreteVDPTagProblem)
     n = p.n_bins
-    factor = n/(2*p.grid_lim)
-    ai = clamp(ceil(Int, (s.agent[1]+p.grid_lim)*factor), 1, n)
-    aj = clamp(ceil(Int, (s.agent[2]+p.grid_lim)*factor), 1, n)
-    ti = clamp(ceil(Int, (s.target[1]+p.grid_lim)*factor), 1, n)
-    tj = clamp(ceil(Int, (s.target[2]+p.grid_lim)*factor), 1, n)
-    return sub2ind((n,n,n,n), ai, aj, ti, tj)
+    factor = n / (2 * p.grid_lim)
+    ai = clamp(ceil(Int, (s.agent[1] + p.grid_lim) * factor), 1, n)
+    aj = clamp(ceil(Int, (s.agent[2] + p.grid_lim) * factor), 1, n)
+    ti = clamp(ceil(Int, (s.target[1] + p.grid_lim) * factor), 1, n)
+    tj = clamp(ceil(Int, (s.target[2] + p.grid_lim) * factor), 1, n)
+    return ((ai - 1) * n * n * n) + ((aj - 1) * n * n) + ((ti - 1) * n) + tj
 end
+
 function convert_s(::Type{TagState}, s::Int, p::DiscreteVDPTagProblem)
     n = p.n_bins
-    factor = 2*p.grid_lim/n
-    ai, aj, ti, tj = ind2sub((n,n,n,n), s)
-    return TagState((Vec2(ai, aj)-0.5)*factor-p.grid_lim, (Vec2(ti, tj)-0.5)*factor-p.grid_lim)
+    factor = 2 * p.grid_lim / n
+    ai, aj, ti, tj = ind2sub_4d((n, n, n, n), s)
+    return TagState((Vec2(ai, aj) .- 0.5) .* factor .- p.grid_lim,
+                    (Vec2(ti, tj) .- 0.5) .* factor .- p.grid_lim)
 end
 
 # action
 function convert_a(::Type{Int}, a::Float64, p::DiscreteVDPTagProblem)
-    i = ceil(Int, a*p.n_angles/(2*pi))
+    i = ceil(Int, a * p.n_angles / (2π))
     while i > p.n_angles
         i -= p.n_angles
     end
@@ -50,31 +75,27 @@ function convert_a(::Type{Int}, a::Float64, p::DiscreteVDPTagProblem)
     end
     return i
 end
-convert_a(::Type{Float64}, a::Int, p::DiscreteVDPTagProblem) = (a-0.5)*2*pi/p.n_angles
+
+convert_a(::Type{Float64}, a::Int, p::DiscreteVDPTagProblem) = (a - 0.5) * 2π / p.n_angles
 
 function convert_a(T::Type{Int}, a::TagAction, p::DiscreteVDPTagProblem)
     i = convert_a(T, a.angle, p)
-    if a.look
-        return i + p.n_angles
-    else
-        return i
-    end
+    return a.look ? i + p.n_angles : i
 end
+
 function convert_a(::Type{TagAction}, a::Int, p::DiscreteVDPTagProblem)
     return TagAction(a > p.n_angles, convert_a(Float64, a % p.n_angles, p))
 end
 
 # observation
 function convert_o(::Type{IVec8}, o::Vec8, p::AODiscreteVDPTagPOMDP)
-    return floor.(Int, (o./p.binsize)::Vec8)::IVec8
+    return floor.(Int, (o ./ p.binsize)::Vec8)::IVec8
 end
-# convert_o(::Type{Vec8}, o::Int, p::DiscreteVDPTagProblem) = (o-0.5)*2*pi/p.n_obs_angles
 
 n_states(p::AODiscreteVDPTagPOMDP) = Inf
-n_actions(p::DiscreteVDPTagProblem) = 2*p.n_angles
+n_actions(p::DiscreteVDPTagProblem) = 2 * p.n_angles
 POMDPs.discount(p::DiscreteVDPTagProblem) = discount(cproblem(p))
 isterminal(p::DiscreteVDPTagProblem, s) = isterminal(cproblem(p), convert_s(TagState, s, p))
-
 POMDPs.actions(p::DiscreteVDPTagProblem) = 1:n_actions(p)
 
 function POMDPs.gen(p::DiscreteVDPTagProblem, s::TagState, a::Int, rng::AbstractRNG)
@@ -84,7 +105,7 @@ end
 
 function POMDPs.gen(p::ADiscreteVDPTagPOMDP, s::TagState, a::Int, rng::AbstractRNG)
     ca = convert_a(actiontype(cproblem(p)), a, p)
-    sor = @gen(:sp,:o,:r)(cproblem(p), s, ca, rng)
+    sor = @gen(:sp, :o, :r)(cproblem(p), s, ca, rng)
     return (sp = sor[1], o = sor[2], r = sor[3])
 end
 
@@ -95,8 +116,8 @@ end
 
 function POMDPs.gen(p::AODiscreteVDPTagPOMDP, s::TagState, a::Int, rng::AbstractRNG)
     ca = convert_a(actiontype(cproblem(p)), a, p)
-    csor = @gen(:sp,:o,:r)(cproblem(p), s, ca, rng)
-    return (sp=csor[1], o=convert_o(IVec8, csor[2], p), r=csor[3])
+    csor = @gen(:sp, :o, :r)(cproblem(p), s, ca, rng)
+    return (sp = csor[1], o = convert_o(IVec8, csor[2], p), r = csor[3])
 end
 
 function POMDPs.observation(p::AODiscreteVDPTagPOMDP, s::TagState, a::Int, sp::TagState)
