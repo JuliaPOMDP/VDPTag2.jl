@@ -11,6 +11,7 @@ using Plots
 
 const IVec8 = VDPTag2.IVec8
 const Vec8 = VDPTag2.Vec8
+import VDPTag2: VDPInitDist
 
 Random.seed!(1)
 rng = MersenneTwister(31)
@@ -130,7 +131,6 @@ end
     p = VDPTag2.VDPTagMDP(mu=1.0, dt=0.1)
     pos = VDPTag2.Vec2(1.0, 0.0)
 
-    # Corrected reference to vdp_dynamics
     dpos = VDPTag2.vdp_dynamics(p.mu, pos)
     @test isa(dpos, VDPTag2.Vec2)
     @test length(dpos) == 2
@@ -190,7 +190,7 @@ end
 
     ob1 = POMDPs.observation(dpomdp, s, a, s)
     ob2 = rand(rng, POMDPs.observation(aopomdp, s, a, s))
-    @test isa(ob1, Vec8)
+    @test isa(rand(rng, ob1), Vec8)
     @test isa(ob2, IVec8)
 
     @test isapprox(POMDPs.discount(dpomdp), 0.95)
