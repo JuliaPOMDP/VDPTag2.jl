@@ -200,5 +200,5 @@ end
 end
 
 @testset "VDPInitDist Sampletype Coverage" begin
-    @test sampletype(VDPInitDist) == TagState
+    @test VDPTag2.sampletype(VDPTag2.VDPInitDist) == VDPTag2.TagState
 end
