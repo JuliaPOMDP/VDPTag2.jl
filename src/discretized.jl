@@ -36,12 +36,12 @@ function convert_s(::Type{Int}, s::TagState, p::DiscreteVDPTagProblem)
     aj = clamp(ceil(Int, (s.agent[2]+p.grid_lim)*factor), 1, n)
     ti = clamp(ceil(Int, (s.target[1]+p.grid_lim)*factor), 1, n)
     tj = clamp(ceil(Int, (s.target[2]+p.grid_lim)*factor), 1, n)
-    return sub2ind((n,n,n,n), ai, aj, ti, tj)
+    return Base.sub2ind((n,n,n,n), ai, aj, ti, tj)
 end
 function convert_s(::Type{TagState}, s::Int, p::DiscreteVDPTagProblem)
     n = p.n_bins
     factor = 2*p.grid_lim/n
-    ai, aj, ti, tj = ind2sub((n,n,n,n), s)
+    ai, aj, ti, tj = Base.ind2sub((n,n,n,n), s)
     return TagState((Vec2(ai, aj)-0.5)*factor-p.grid_lim, (Vec2(ti, tj)-0.5)*factor-p.grid_lim)
 end
 
