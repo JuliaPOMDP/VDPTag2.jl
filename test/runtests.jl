@@ -13,8 +13,6 @@ const IVec8 = VDPTag2.IVec8
 const Vec8 = VDPTag2.Vec8
 import VDPTag2: VDPInitDist
 
-include("visualization_tests.jl")
-
 Random.seed!(1)
 rng = MersenneTwister(31)
 
@@ -198,4 +196,8 @@ end
     @test isapprox(POMDPs.discount(dpomdp), 0.95)
     @test !POMDPs.isterminal(dpomdp, idx)
     @test POMDPs.initialstate(dpomdp) isa VDPInitDist
+end
+
+@testset "VDPInitDist Sampletype Coverage" begin
+    @test sampletype(VDPInitDist) == TagState
 end
