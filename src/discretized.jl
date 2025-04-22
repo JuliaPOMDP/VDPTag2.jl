@@ -1,5 +1,5 @@
 import POMDPs.initialstate
-import Base: sub2ind
+import Base: sub2ind, ind2sub
 
 const Vec8 = SVector{8, Float64}
 const IVec8 = SVector{8, Int}
