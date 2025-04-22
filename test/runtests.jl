@@ -13,6 +13,8 @@ const IVec8 = VDPTag2.IVec8
 const Vec8 = VDPTag2.Vec8
 import VDPTag2: VDPInitDist
 
+include("visualization_tests.jl")
+
 Random.seed!(1)
 rng = MersenneTwister(31)
 
