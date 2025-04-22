@@ -1,3 +1,4 @@
+import POMDPs: sampletype
 using Test
 using VDPTag2
 using POMDPs
