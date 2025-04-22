@@ -10,15 +10,11 @@ using ParticleFilters
 using Random
 using LinearAlgebra
 
-import Base: rand, sub2ind
-
-const Vec2 = SVector{2, Float64}
-const Vec8 = SVector{8, Float64}
-
-import Base: rand
+import Base: rand, sub2ind, ind2sub
 import MCTS: next_action, n_children
 import ParticleFilters: obs_weight
 import POMDPs: actions, isterminal
+
 
 export
     TagState,
