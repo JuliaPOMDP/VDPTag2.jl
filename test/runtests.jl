@@ -7,7 +7,6 @@ using Random
 using MCTS
 using LinearAlgebra
 using StaticArrays: @SVector
-using Base: sub2ind 
 
 # Seed RNG for reproducibility
 Random.seed!(1)
