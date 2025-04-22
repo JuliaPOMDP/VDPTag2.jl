@@ -4,7 +4,6 @@ using POMDPTools
 using VDPTag2: VDPTagProblem, VDPTagPOMDP, TagState, ParticleCollection, mdp, Vec2
 
 @testset "Visualization Recipes" begin
-    # Define pomdp and mdp with visible barriers
     pomdp = VDPTagPOMDP(mdp=VDPTagMDP(barriers=CardinalBarriers(0.0, 2.0)))
     p = mdp(pomdp)
 
@@ -13,10 +12,10 @@ using VDPTag2: VDPTagProblem, VDPTagPOMDP, TagState, ParticleCollection, mdp, Ve
         !isempty(plt.series_list)
     end
 
-    # Simulate with updater
     sim = RolloutSimulator()
     updater = BootstrapFilter(pomdp, 10)
-    hist = simulate(sim, pomdp, RandomPolicy(pomdp), updater, 3)
+    belief = initialize_belief(updater, initialstate(pomdp))
+    hist = simulate(sim, pomdp, RandomPolicy(pomdp), updater, belief)
 
     @test begin
         plt = plot(pomdp, hist)
