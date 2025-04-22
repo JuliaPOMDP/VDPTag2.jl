@@ -217,3 +217,33 @@ end
     plt = plot(pc)
     @test plt isa Plots.Plot
 end
+
+@testset "TranslatedPolicy Action Coverage" begin
+    dpomdp = ADiscreteVDPTagPOMDP()
+    rng = MersenneTwister(123)
+    policy = ToNextML(mdp(dpomdp), rng)
+    translated = translate_policy(policy, dpomdp, dpomdp, dpomdp)
+
+    # Cover POMDPs.action(::TranslatedPolicy, s)
+    s = TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0))
+    a = POMDPs.action(translated, s)
+    @test isa(a, TagAction)
+
+    # Cover POMDPs.action(::TranslatedPolicy, ParticleCollection)
+    pc = ParticleCollection([TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0)) for _ in 1:5])
+    a2 = POMDPs.action(translated, pc)
+    @test isa(a2, TagAction)
+end
+
+@testset "NextMLFirst Coverage" begin
+    mdp_obj = VDPTagMDP()
+    gen = NextMLFirst(mdp_obj, rng)
+    s = TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0))
+
+    struct DummyNodeZero end
+    VDPTag2.n_children(::DummyNodeZero) = 0
+
+    # Cover call to ToNextML inside next_action
+    a = next_action(gen, mdp_obj, s, DummyNodeZero())
+    @test isa(a, Float64)
+end
