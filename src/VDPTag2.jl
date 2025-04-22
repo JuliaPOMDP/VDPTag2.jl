@@ -10,6 +10,8 @@ using ParticleFilters
 using Random
 using LinearAlgebra
 
+import Base: rand, sub2ind
+
 const Vec2 = SVector{2, Float64}
 const Vec8 = SVector{8, Float64}
 
