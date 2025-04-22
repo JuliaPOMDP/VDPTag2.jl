@@ -1,7 +1,18 @@
 using Test
-using Plots
+using VDPTag2
+using POMDPs
 using POMDPTools
-using VDPTag2: VDPTagProblem, VDPTagPOMDP, TagState, ParticleCollection, mdp, Vec2
+using ParticleFilters
+using Random
+using MCTS
+using LinearAlgebra
+using StaticArrays: @SVector
+using Plots
+
+const IVec8 = VDPTag2.IVec8
+const Vec8 = VDPTag2.Vec8
+import VDPTag2: VDPInitDist
+
 
 @testset "Visualization Recipes" begin
     # Create a dummy VDPTagProblem
