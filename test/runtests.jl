@@ -13,6 +13,7 @@ using Plots
 const IVec8 = VDPTag2.IVec8
 const Vec8 = VDPTag2.Vec8
 import VDPTag2: VDPInitDist
+import VDPTag2: VDPTagProblem, VDPTagMDP, CardinalBarriers
 
 Random.seed!(1)
 rng = MersenneTwister(31)
@@ -206,13 +207,6 @@ end
 @testset "Plot VDPTagProblem with CardinalBarriers" begin
     m = VDPTagMDP(barriers=CardinalBarriers(0.2, 1.8))
     p = VDPTagProblem(m)
-    plt = plot(p)
-    @test plt isa Plots.Plot
-end
-
-@testset "Plot VDPTagProblem with CardinalBarriers" begin
-    m = VDPTag2.VDPTagMDP(barriers=VDPTag2.CardinalBarriers(0.2, 1.8))
-    p = VDPTag2.VDPTagProblem(m)
     plt = plot(p)
     @test plt isa Plots.Plot
 end
