@@ -226,7 +226,7 @@ end
 
     # --- Observation Sampling ---
     ob1 = POMDPs.observation(dpomdp, s, a, s)
-    ob2 = rand(POMDPs.observation(aopomdp, s, a, s), rng)
+    ob2 = rand(rng, POMDPs.observation(aopomdp, s, a, s))
     @test isa(ob1, Vec8)
     @test isa(ob2, IVec8)
 
