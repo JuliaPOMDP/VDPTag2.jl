@@ -9,6 +9,7 @@ end
 cardinals() = (Vec2(1,0), Vec2(0,1), Vec2(-1,0), Vec2(0,-1))
 
 function barrier_stop(b::CardinalBarriers, from, delta)
+    # https://stackoverflow.com/questions/563198/whats-the-most-efficent-way-to-calculate-where-two-line-segments-intersect
     shortest_u = 1.0 + 2.0 * eps()
     q = from
     s = delta
