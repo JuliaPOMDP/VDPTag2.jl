@@ -197,3 +197,6 @@ end
     @test !POMDPs.isterminal(dpomdp, idx)
     @test POMDPs.initialstate(dpomdp) isa VDPInitDist
 end
+
+@test sampletype(VDPInitDist) == TagState
+
