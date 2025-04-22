@@ -204,12 +204,12 @@ end
     @test VDPTag2.sampletype(VDPTag2.VDPInitDist) == VDPTag2.TagState
 end
 
-@testset "Plot VDPTagProblem with CardinalBarriers" begin
+@testset "Plot VDPTagMDP with CardinalBarriers" begin
     m = VDPTagMDP(barriers=CardinalBarriers(0.2, 1.8))
-    p = VDPTagProblem(m)
-    plt = plot(p)
+    plt = plot(m)
     @test plt isa Plots.Plot
 end
+
 
 @testset "Plot ParticleCollection{TagState}" begin
     pcs = [TagState([0.0, 0.0], [randn(), randn()]) for _ in 1:10]
