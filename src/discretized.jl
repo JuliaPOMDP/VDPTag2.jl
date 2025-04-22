@@ -53,7 +53,7 @@ function convert_s(::Type{Int}, s::TagState, p::DiscreteVDPTagProblem)
     aj = clamp(ceil(Int, (s.agent[2] + p.grid_lim) * factor), 1, n)
     ti = clamp(ceil(Int, (s.target[1] + p.grid_lim) * factor), 1, n)
     tj = clamp(ceil(Int, (s.target[2] + p.grid_lim) * factor), 1, n)
-    return sub2ind_4d((n, n, n, n), ai, aj, ti, tj)
+    return ((ai - 1) * n * n * n) + ((aj - 1) * n * n) + ((ti - 1) * n) + tj
 end
 
 function convert_s(::Type{TagState}, s::Int, p::DiscreteVDPTagProblem)
