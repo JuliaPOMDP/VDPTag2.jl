@@ -1,7 +1,7 @@
-using VDPTag2
 using Test
-using POMDPTools
 using Plots
+using POMDPTools
+using VDPTag2: VDPTagProblem, VDPTagPOMDP, TagState, ParticleCollection, mdp, Vec2
 
 @testset "Visualization Recipes" begin
     # Create a dummy VDPTagProblem
