@@ -227,11 +227,11 @@ end
 
     s = TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0))
     a = POMDPs.action(translated, s)
-    @test isa(a, TagAction)
+    @test isa(a, Int)  # returns discrete action index
 
     pc = ParticleCollection([TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0)) for _ in 1:5])
     a2 = POMDPs.action(translated, pc)
-    @test isa(a2, TagAction)
+    @test isa(a2, Int)  # same here
 end
 
 @testset "NextMLFirst Coverage" begin
