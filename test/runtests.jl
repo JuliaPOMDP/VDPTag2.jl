@@ -219,21 +219,20 @@ end
 end
 
 @testset "TranslatedPolicy Action Coverage" begin
-    dpomdp = ADiscreteVDPTagPOMDP()
+    cp = cproblem(ADiscreteVDPTagPOMDP())  # full continuous problem
     rng = MersenneTwister(123)
-    policy = ToNextML(mdp(dpomdp), rng)
-    translated = translate_policy(policy, dpomdp, dpomdp, dpomdp)
+    policy = ToNextML(mdp(cp), rng)
+    translated = translate_policy(policy, cp, cp, cp)
 
-    # Cover POMDPs.action(::TranslatedPolicy, s)
     s = TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0))
     a = POMDPs.action(translated, s)
     @test isa(a, TagAction)
 
-    # Cover POMDPs.action(::TranslatedPolicy, ParticleCollection)
     pc = ParticleCollection([TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0)) for _ in 1:5])
     a2 = POMDPs.action(translated, pc)
     @test isa(a2, TagAction)
 end
+
 
 @testset "NextMLFirst Coverage" begin
     mdp_obj = VDPTagMDP()
