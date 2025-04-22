@@ -202,3 +202,26 @@ end
 @testset "VDPInitDist Sampletype Coverage" begin
     @test VDPTag2.sampletype(VDPTag2.VDPInitDist) == VDPTag2.TagState
 end
+
+@testset "Plot VDPTagProblem with CardinalBarriers" begin
+    m = VDPTagMDP(barriers=CardinalBarriers(0.2, 1.8))
+    p = VDPTagProblem(m)
+    plt = plot(p)
+    @test plt isa Plots.Plot
+end
+
+@testset "Plot VDPTagPOMDP with History" begin
+    pomdp = VDPTagPOMDP()
+    policy = ToNextML(pomdp)
+    updater = BootstrapFilter(pomdp, 10)
+    h = simulate(HistoryRecorder(max_steps=5), pomdp, policy, updater)
+    plt = plot(pomdp, h)
+    @test plt isa Plots.Plot
+end
+
+@testset "Plot ParticleCollection{TagState}" begin
+    pcs = [TagState([0.0, 0.0], [randn(), randn()]) for _ in 1:10]
+    pc = ParticleCollection(pcs)
+    plt = plot(pc)
+    @test plt isa Plots.Plot
+end
