@@ -10,15 +10,23 @@ using LinearAlgebra
 using StaticArrays: @SVector
 using Plots
 
+# Type aliases for easier usage
 const IVec8 = VDPTag2.IVec8
 const Vec8 = VDPTag2.Vec8
-import VDPTag2: VDPInitDist
-import VDPTag2: VDPTagProblem, VDPTagMDP, CardinalBarriers
 
+# Import key types from VDPTag2
+import VDPTag2: VDPInitDist, VDPTagProblem, VDPTagMDP, CardinalBarriers
+
+# Set RNG seed for reproducibility
 Random.seed!(1)
 rng = MersenneTwister(31)
 
+# ----------------------------
+# Policy and Action Logic Tests
+# ----------------------------
+
 @testset "ToNextML + MCTS" begin
+    # Test deterministic and belief-based action selection
     pomdp = VDPTagPOMDP()
     gen = NextMLFirst(mdp(pomdp), rng)
     s = TagState(Vec2(1.0, 1.0), Vec2(-1.0, -1.0))
@@ -36,6 +44,7 @@ rng = MersenneTwister(31)
 end
 
 @testset "Barrier Stop Sanity" begin
+    # Ensure barrier logic correctly blocks movement
     barriers = CardinalBarriers(0.2, 1.8)
     for a in range(0.0, stop=2π, length=100)
         s = TagState(Vec2(0, 0), Vec2(1, 1))
@@ -46,6 +55,7 @@ end
 end
 
 @testset "Simulation - Continuous" begin
+    # Validate simulation using continuous model
     pomdp = VDPTagPOMDP()
     policy = ToNextML(pomdp)
     updater = BootstrapFilter(pomdp, 100)
@@ -54,17 +64,20 @@ end
 end
 
 @testset "Simulation - Discrete" begin
+    # Validate simulation using discrete model
     dpomdp = AODiscreteVDPTagPOMDP()
     policy = RandomPolicy(dpomdp)
     hist = simulate(HistoryRecorder(max_steps=10), dpomdp, policy)
     @test length(state_hist(hist)) > 1
 end
 
+# Helper for generating test states in different quadrants
 function sample_in_quadrant(rng, quadrant)
     TagState(rand(rng, Vec2) .* 5.0 .* quadrant, rand(rng, Vec2) .* 5.0 .* quadrant)
 end
 
 @testset "Barriers Block Movement" begin
+    # Ensure agents are blocked by barriers in all directions
     pomdp = VDPTagPOMDP(mdp=VDPTagMDP(barriers=CardinalBarriers(0.0, 100.0)))
     policy = ToNextML(pomdp)
     updater = BootstrapFilter(pomdp, 100)
@@ -80,6 +93,7 @@ end
 end
 
 @testset "No Barriers - Can Cross Quadrants" begin
+    # Confirm agent can cross between quadrants without barriers
     pomdp = VDPTagPOMDP()
     policy = ToNextML(pomdp)
     updater = BootstrapFilter(pomdp, 100)
@@ -96,6 +110,7 @@ end
 end
 
 @testset "ToNextML Action on ParticleCollection" begin
+    # Check policy behavior on unweighted particle belief
     pomdp = VDPTagPOMDP()
     policy = ToNextML(pomdp; rng=rng)
     particles = ParticleCollection([TagState([0.0, 0.0], [1.0, 1.0]) for _ in 1:20])
@@ -107,18 +122,21 @@ end
 end
 
 @testset "ToNextMLSolver - Continuous Problem" begin
+    # Solver should return correct policy type
     solver = ToNextMLSolver(rng)
     policy = solve(solver, VDPTagPOMDP())
     @test isa(policy, ToNextML)
 end
 
 @testset "ToNextMLSolver - Discrete Problem" begin
+    # Solver for discrete problem returns TranslatedPolicy
     solver = ToNextMLSolver(rng)
     policy = solve(solver, AODiscreteVDPTagPOMDP())
     @test isa(policy, TranslatedPolicy)
 end
 
 @testset "ManageUncertainty Action" begin
+    # Policy should trigger 'look' when uncertainty is high
     pomdp = VDPTagPOMDP()
     policy = ManageUncertainty(pomdp, 0.1)
     belief = ParticleCollection([TagState([0.0, 0.0], [randn(), randn()]) for _ in 1:50])
@@ -130,6 +148,7 @@ end
 end
 
 @testset "RK4 and VDP Dynamics" begin
+    # Test numerical integration and derivative function
     p = VDPTag2.VDPTagMDP(mu=1.0, dt=0.1)
     pos = VDPTag2.Vec2(1.0, 0.0)
 
@@ -145,6 +164,7 @@ end
 end
 
 @testset "Plot Recipes Execution" begin
+    # Ensure custom plot recipes execute without error
     p = VDPTagPOMDP()
     mdp_obj = mdp(p)
     dummy_hist = simulate(HistoryRecorder(max_steps=3), p, RandomPolicy(p), BootstrapFilter(p, 10))
@@ -158,6 +178,7 @@ end
 end
 
 @testset "DiscreteVDPTagProblem Conversions and Gen" begin
+    # Test conversion functions for discrete problem
     dpomdp = ADiscreteVDPTagPOMDP()
     aopomdp = AODiscreteVDPTagPOMDP()
     rng = MersenneTwister(123)
@@ -201,17 +222,19 @@ end
 end
 
 @testset "VDPInitDist Sampletype Coverage" begin
+    # Covers sampletype(::Type{VDPInitDist})
     @test VDPTag2.sampletype(VDPTag2.VDPInitDist) == VDPTag2.TagState
 end
 
 @testset "Plot VDPTagMDP with CardinalBarriers" begin
+    # Covers plotting logic for CardinalBarriers
     m = VDPTagMDP(barriers=CardinalBarriers(0.2, 1.8))
     plt = plot(m)
     @test plt isa Plots.Plot
 end
 
-
 @testset "Plot ParticleCollection{TagState}" begin
+    # Covers plot recipe for unweighted belief visualization
     pcs = [TagState([0.0, 0.0], [randn(), randn()]) for _ in 1:10]
     pc = ParticleCollection(pcs)
     plt = plot(pc)
@@ -219,6 +242,7 @@ end
 end
 
 @testset "TranslatedPolicy Action Coverage" begin
+    # Covers action translation logic for discretized POMDP
     dpomdp = ADiscreteVDPTagPOMDP()
     rng = MersenneTwister(123)
     cp = cproblem(dpomdp)
@@ -227,14 +251,15 @@ end
 
     s = TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0))
     a = POMDPs.action(translated, s)
-    @test isa(a, Int)  # returns discrete action index
+    @test isa(a, Int)
 
     pc = ParticleCollection([TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0)) for _ in 1:5])
     a2 = POMDPs.action(translated, pc)
-    @test isa(a2, Int)  # same here
+    @test isa(a2, Int)
 end
 
 @testset "NextMLFirst Coverage" begin
+    # Cover fallback case where no children exist
     mdp_obj = VDPTagMDP()
     gen = NextMLFirst(mdp_obj, rng)
     s = TagState(Vec2(0.0, 0.0), Vec2(1.0, 1.0))
@@ -242,7 +267,6 @@ end
     struct DummyNodeZero end
     VDPTag2.n_children(::DummyNodeZero) = 0
 
-    # Cover call to ToNextML inside next_action
     a = next_action(gen, mdp_obj, s, DummyNodeZero())
     @test isa(a, Float64)
 end
