@@ -127,16 +127,17 @@ end
 end
 
 @testset "RK4 and VDP Dynamics" begin
-    p = VDPTagMDP(mu=1.0, dt=0.1)
-    pos = Vec2(1.0, 0.0)
+    p = VDPTag2.VDPTagMDP(mu=1.0, dt=0.1)
+    pos = VDPTag2.Vec2(1.0, 0.0)
 
-    dpos = vdp_dynamics(p.mu, pos)
-    @test isa(dpos, Vec2)
+    # Corrected reference to vdp_dynamics
+    dpos = VDPTag2.vdp_dynamics(p.mu, pos)
+    @test isa(dpos, VDPTag2.Vec2)
     @test length(dpos) == 2
     @test all(isfinite, dpos)
 
-    new_pos = rk4step(p, pos)
-    @test isa(new_pos, Vec2)
+    new_pos = VDPTag2.rk4step(p, pos)
+    @test isa(new_pos, VDPTag2.Vec2)
     @test length(new_pos) == 2
     @test all(isfinite, new_pos)
 end
