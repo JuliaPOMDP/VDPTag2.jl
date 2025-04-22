@@ -8,6 +8,8 @@ using MCTS
 using LinearAlgebra
 using StaticArrays: @SVector
 
+const IVec8 = VDPTag2.IVec8
+
 # Seed RNG for reproducibility
 Random.seed!(1)
 rng = MersenneTwister(31)
