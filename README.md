@@ -1,6 +1,6 @@
 # VDPTag2
 
-[![CI](https://github.com/JuliaPOMDP/VDPTag2.jl/actions/workflows/Ci.yml/badge.svg)](https://github.com/JuliaPOMDP/VDPTag2.jl/actions/workflows/Ci.yml)[![codecov](https://codecov.io/github/JuliaPOMDP/VDPTag2.jl/graph/badge.svg?token=QKvJhXy8cK)](https://codecov.io/github/JuliaPOMDP/VDPTag2.jl)
+[![CI](https://github.com/JuliaPOMDP/VDPTag2.jl/actions/workflows/Ci.yml/badge.svg)](https://github.com/JuliaPOMDP/VDPTag2.jl/actions/workflows/Ci.yml)[![codecov](https://codecov.io/github/JuliaPOMDP/VDPTag2.jl/graph/badge.svg)](https://codecov.io/github/JuliaPOMDP/VDPTag2.jl)
 
 
 See [VDPTag2/test](https://github.com/JuliaPOMDP/VDPTag2.jl/tree/master/test) for usage examples. 
